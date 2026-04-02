@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
@@ -14,6 +15,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupMenuBar()
 
+        // Notification permissions + delegate for "Show in Finder"
+        SettingsManager.requestNotificationPermission()
+        UNUserNotificationCenter.current().delegate = self
+
         hotkeyManager = HotkeyManager { [weak self] in
             DispatchQueue.main.async { self?.initiateCapture() }
         }
@@ -28,17 +33,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
-        let captureItem = NSMenuItem(title: "Capturar área  ⇧⌘2", action: #selector(initiateCapture), keyEquivalent: "")
+        let captureItem = NSMenuItem(title: "Capture Area  ⇧⌘2", action: #selector(initiateCapture), keyEquivalent: "")
         captureItem.target = self
         menu.addItem(captureItem)
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Salir de SnapFloat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit SnapFloat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem?.menu = menu
     }
 
@@ -48,5 +53,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         SettingsWindowController.show()
+    }
+}
+
+// MARK: – Notification delegate (handle "Show in Finder")
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    // Show notifications even when app is in foreground
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
+    // Handle "Mostrar en Finder" action
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.actionIdentifier == "SHOW_IN_FINDER",
+           let path = response.notification.request.content.userInfo["filePath"] as? String {
+            let url = URL(fileURLWithPath: path)
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
+        completionHandler()
     }
 }

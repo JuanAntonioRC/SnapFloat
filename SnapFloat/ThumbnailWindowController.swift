@@ -2,8 +2,8 @@ import AppKit
 
 /// Floating thumbnail shown after a capture.
 /// - Click image → opens the annotation editor.
-/// - Save button → saves original to disk (requires configured save folder).
-/// - No click → copies original image to clipboard and dismisses after configured duration.
+/// - Copy/Save buttons for manual actions.
+/// - Auto-dismisses after the configured duration.
 final class ThumbnailWindowController: NSWindowController {
 
     private static var instance: ThumbnailWindowController?
@@ -27,7 +27,6 @@ final class ThumbnailWindowController: NSWindowController {
     init(image: NSImage, originalSize: NSSize) {
         capturedImage = image
 
-        // Scale thumbnail so longest edge is ≤ 200 pt
         let maxEdge: CGFloat = 200
         let scale = min(maxEdge / max(originalSize.width, 1),
                         maxEdge / max(originalSize.height, 1),
@@ -36,7 +35,7 @@ final class ThumbnailWindowController: NSWindowController {
                                height: max(originalSize.height * scale, 40))
 
         let stripH: CGFloat = 32
-        let panelWidth = max(thumbSize.width, 100)
+        let panelWidth = max(thumbSize.width, 180)
         let panelSize = NSSize(width: panelWidth, height: thumbSize.height + stripH)
 
         let screen = NSScreen.main!
@@ -85,11 +84,19 @@ final class ThumbnailWindowController: NSWindowController {
         strip.layer?.backgroundColor = NSColor(white: 0.13, alpha: 1).cgColor
         container.addSubview(strip)
 
-        // Save button inside strip
-        let saveBtn = StripButton(title: "Guardar", systemImage: "square.and.arrow.down")
-        saveBtn.frame.origin = NSPoint(x: (panelWidth - saveBtn.frame.width) / 2,
-                                       y: (stripH - saveBtn.frame.height) / 2)
+        let copyBtn = StripButton(title: "Copy", systemImage: "doc.on.doc")
+        copyBtn.onClick = { [weak self] in self?.copyTapped() }
+
+        let saveBtn = StripButton(title: "Save", systemImage: "square.and.arrow.down")
         saveBtn.onClick = { [weak self] in self?.saveTapped() }
+
+        let gap: CGFloat = 6
+        let totalW = copyBtn.frame.width + gap + saveBtn.frame.width
+        let startX = (panelWidth - totalW) / 2
+        copyBtn.frame.origin = NSPoint(x: startX, y: (stripH - copyBtn.frame.height) / 2)
+        saveBtn.frame.origin = NSPoint(x: startX + copyBtn.frame.width + gap,
+                                       y: (stripH - saveBtn.frame.height) / 2)
+        strip.addSubview(copyBtn)
         strip.addSubview(saveBtn)
 
         panel.contentView = container
@@ -102,10 +109,10 @@ final class ThumbnailWindowController: NSWindowController {
             panel.animator().alphaValue = 1
         }
 
-        // Auto-dismiss after configured duration
+        // Auto-dismiss after configured duration (just dismisses — action already happened at capture time)
         let duration = SettingsManager.shared.previewDuration
         dismissTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
-            self?.copyAndDismiss()
+            self?.animateOut()
         }
     }
 
@@ -121,6 +128,15 @@ final class ThumbnailWindowController: NSWindowController {
         AnnotationWindowController.show(image: capturedImage)
     }
 
+    private func copyTapped() {
+        dismissTimer?.invalidate()
+        dismissTimer = nil
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects([capturedImage])
+        animateOut()
+    }
+
     private func saveTapped() {
         dismissTimer?.invalidate()
         dismissTimer = nil
@@ -131,13 +147,6 @@ final class ThumbnailWindowController: NSWindowController {
         }
 
         SettingsManager.saveToDiskIfNeeded(capturedImage)
-        animateOut()
-    }
-
-    private func copyAndDismiss() {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.writeObjects([capturedImage])
         animateOut()
     }
 
@@ -163,13 +172,11 @@ final class ThumbnailWindowController: NSWindowController {
 
 // MARK: – Helper views
 
-/// Clickable area for the image portion.
 private final class ClickableView: NSView {
     var onClick: (() -> Void)?
     override func mouseDown(with event: NSEvent) { onClick?() }
 }
 
-/// Swallows mouse events so they don't propagate to parent.
 private final class EventBlockingView: NSView {
     override func mouseDown(with event: NSEvent) { /* consume */ }
 }

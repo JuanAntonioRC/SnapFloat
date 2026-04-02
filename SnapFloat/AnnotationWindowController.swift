@@ -176,7 +176,7 @@ final class AnnotationWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        win.title = "SnapFloat — Anotar"
+        win.title = "SnapFloat — Annotate"
         win.isReleasedWhenClosed = false
         win.level = .floating
 
@@ -226,21 +226,21 @@ final class AnnotationWindowController: NSWindowController {
         colorDots.first?.isSelected = true
         x += 12
 
-        let undoBtn = sysBtn(title: "↩ Deshacer", width: 100)
+        let undoBtn = sysBtn(title: "↩ Undo", width: 80)
         undoBtn.frame.origin = NSPoint(x: x, y: (h - 26) / 2)
         undoBtn.target = self
         undoBtn.action = #selector(didUndo)
         bar.addSubview(undoBtn)
         x += undoBtn.frame.width + 8
 
-        let copyBtn = sysBtn(title: "✓ Copiar", width: 90)
+        let copyBtn = sysBtn(title: "✓ Copy", width: 80)
         copyBtn.frame.origin = NSPoint(x: x, y: (h - 26) / 2)
         copyBtn.target = self
         copyBtn.action = #selector(didCopy)
         bar.addSubview(copyBtn)
         x += copyBtn.frame.width + 8
 
-        let saveBtn = sysBtn(title: "⤓ Guardar", width: 100)
+        let saveBtn = sysBtn(title: "⤓ Save", width: 80)
         saveBtn.frame.origin = NSPoint(x: x, y: (h - 26) / 2)
         saveBtn.target = self
         saveBtn.action = #selector(didSave)
