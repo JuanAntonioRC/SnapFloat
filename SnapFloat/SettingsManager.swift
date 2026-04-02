@@ -9,6 +9,8 @@ final class SettingsManager {
 
     private let defaults = UserDefaults.standard
 
+    static let hotkeyDidChangeNotification = Notification.Name("com.snapfloat.hotkeyDidChange")
+
     // MARK: – Keys
 
     private enum Key: String {
@@ -16,6 +18,8 @@ final class SettingsManager {
         case saveLocation    = "saveLocation"
         case autoSaveEnabled = "autoSaveEnabled"
         case captureAction   = "captureAction"
+        case hotkeyKeyCode   = "hotkeyKeyCode"
+        case hotkeyModifiers = "hotkeyModifiers"
     }
 
     // MARK: – Capture action (what happens right after a screenshot is taken)
@@ -63,6 +67,30 @@ final class SettingsManager {
         let url = URL(fileURLWithPath: path, isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    // MARK: – Hotkey (default: ⇧⌘2)
+
+    var hotkeyKeyCode: UInt32 {
+        get {
+            guard defaults.object(forKey: Key.hotkeyKeyCode.rawValue) != nil else { return 0x13 }
+            return UInt32(defaults.integer(forKey: Key.hotkeyKeyCode.rawValue))
+        }
+        set { defaults.set(Int(newValue), forKey: Key.hotkeyKeyCode.rawValue) }
+    }
+
+    var hotkeyModifiers: UInt32 {
+        get {
+            guard defaults.object(forKey: Key.hotkeyModifiers.rawValue) != nil else { return 0x300 }
+            return UInt32(defaults.integer(forKey: Key.hotkeyModifiers.rawValue))
+        }
+        set { defaults.set(Int(newValue), forKey: Key.hotkeyModifiers.rawValue) }
+    }
+
+    func setHotkey(keyCode: UInt32, modifiers: UInt32) {
+        hotkeyKeyCode = keyCode
+        hotkeyModifiers = modifiers
+        NotificationCenter.default.post(name: Self.hotkeyDidChangeNotification, object: nil)
     }
 
     // MARK: – Launch at login

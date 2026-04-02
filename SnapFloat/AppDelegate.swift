@@ -4,6 +4,7 @@ import UserNotifications
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var hotkeyManager: HotkeyManager?
+    private var captureMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -22,7 +23,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager = HotkeyManager { [weak self] in
             DispatchQueue.main.async { self?.initiateCapture() }
         }
-        hotkeyManager?.register()
+        let sm = SettingsManager.shared
+        hotkeyManager?.register(keyCode: sm.hotkeyKeyCode, modifiers: sm.hotkeyModifiers)
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(hotkeyDidChange),
+            name: SettingsManager.hotkeyDidChangeNotification, object: nil
+        )
     }
 
     private func setupMenuBar() {
@@ -33,8 +40,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
-        let captureItem = NSMenuItem(title: "Capture Area  ⇧⌘2", action: #selector(initiateCapture), keyEquivalent: "")
+        let sm = SettingsManager.shared
+        let shortcut = HotkeyManager.displayString(forKeyCode: sm.hotkeyKeyCode, modifiers: sm.hotkeyModifiers)
+        let captureItem = NSMenuItem(title: "Capture Area  \(shortcut)", action: #selector(initiateCapture), keyEquivalent: "")
         captureItem.target = self
+        captureMenuItem = captureItem
         menu.addItem(captureItem)
         menu.addItem(.separator())
 
@@ -53,6 +63,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         SettingsWindowController.show()
+    }
+
+    @objc private func hotkeyDidChange() {
+        let sm = SettingsManager.shared
+        hotkeyManager?.register(keyCode: sm.hotkeyKeyCode, modifiers: sm.hotkeyModifiers)
+        let shortcut = HotkeyManager.displayString(forKeyCode: sm.hotkeyKeyCode, modifiers: sm.hotkeyModifiers)
+        captureMenuItem?.title = "Capture Area  \(shortcut)"
     }
 }
 
