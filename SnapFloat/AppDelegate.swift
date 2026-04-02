@@ -1,5 +1,4 @@
 import AppKit
-import CoreGraphics
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
@@ -8,8 +7,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Request Screen Recording permission proactively
-        CGRequestScreenCaptureAccess()
+        // Trigger the Screen Recording permission dialog once at launch and
+        // cache SCDisplay objects. Do NOT call CGRequestScreenCaptureAccess()
+        // — it conflicts with ScreenCaptureKit and causes repeated dialogs.
+        ScreenCaptureManager.prepareCapture()
 
         setupMenuBar()
 
