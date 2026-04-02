@@ -20,6 +20,8 @@
 		B47C1A2D3E4F50617283942A /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941F /* Carbon.framework */; };
 		B47C1A2D3E4F50617283942D /* AnnotationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */; };
 		B47C1A2D3E4F50617283942F /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283942E /* ScreenCaptureKit.framework */; };
+		B47C1A2D3E4F506172839432 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F506172839430 /* SettingsManager.swift */; };
+		B47C1A2D3E4F506172839433 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F506172839431 /* SettingsWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +40,8 @@
 		B47C1A2D3E4F50617283941F /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
 		B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationWindowController.swift; sourceTree = "<group>"; };
 		B47C1A2D3E4F50617283942E /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
+		B47C1A2D3E4F506172839430 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		B47C1A2D3E4F506172839431 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +87,8 @@
 				B47C1A2D3E4F506172839419 /* CaptureOverlayView.swift */,
 				B47C1A2D3E4F50617283941A /* ThumbnailWindowController.swift */,
 				B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */,
+				B47C1A2D3E4F506172839430 /* SettingsManager.swift */,
+				B47C1A2D3E4F506172839431 /* SettingsWindowController.swift */,
 				B47C1A2D3E4F50617283941B /* Info.plist */,
 				B47C1A2D3E4F50617283941C /* Assets.xcassets */,
 			);
@@ -177,6 +183,8 @@
 				B47C1A2D3E4F506172839425 /* CaptureOverlayView.swift in Sources */,
 				B47C1A2D3E4F506172839426 /* ThumbnailWindowController.swift in Sources */,
 				B47C1A2D3E4F50617283942D /* AnnotationWindowController.swift in Sources */,
+				B47C1A2D3E4F506172839432 /* SettingsManager.swift in Sources */,
+				B47C1A2D3E4F506172839433 /* SettingsWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

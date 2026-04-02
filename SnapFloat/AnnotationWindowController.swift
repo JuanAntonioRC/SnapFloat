@@ -254,6 +254,7 @@ final class AnnotationWindowController: NSWindowController {
         let img = canvas.compositeImage()
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([img])
+        SettingsManager.saveToDiskIfNeeded(img)
         window?.close()
     }
 }

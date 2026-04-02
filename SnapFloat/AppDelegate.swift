@@ -32,11 +32,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         captureItem.target = self
         menu.addItem(captureItem)
         menu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Salir de SnapFloat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem?.menu = menu
     }
 
     @objc func initiateCapture() {
         CaptureOverlayWindow.show()
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.show()
     }
 }
