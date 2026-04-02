@@ -16,44 +16,50 @@ final class ScreenCaptureManager {
     // MARK: – Private
 
     private static func captureImage(rect screenRect: NSRect) -> NSImage? {
-        // 1. Find which physical display contains the selection centre.
+        // 1. Find which screen contains the selection.
         let centre = NSPoint(x: screenRect.midX, y: screenRect.midY)
-        let screen = NSScreen.screens.first { $0.frame.contains(centre) } ?? NSScreen.main!
+        let screen = NSScreen.screens.first { $0.frame.contains(centre) } ?? NSScreen.screens.first!
 
-        // 2. Get the CGDirectDisplayID for that screen.
         guard let nsNum = screen.deviceDescription[
             NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
         else { return nil }
         let displayID = CGDirectDisplayID(nsNum.uint32Value)
 
-        // 3. Capture the full display at native resolution.
-        //    CGDisplayCreateImage works per-display, so multi-monitor is unambiguous.
-        guard let fullImage = CGDisplayCreateImage(displayID) else { return nil }
-
-        // 4. Convert selection from global AppKit coords → display-local pixel coords.
+        // 2. Build the CG rect using CGDisplayBounds.
         //
-        //    AppKit global:        origin bottom-left of primary, Y up.
-        //    CGDisplayCreateImage: origin top-left of THIS display, Y down.
+        //    WHY: CGWindowListCreateImage needs global CG coordinates
+        //    (origin = top-left of primary display, Y increases downward).
         //
-        //    Step A – make coords relative to this screen's bottom-left corner.
-        let scale = screen.backingScaleFactor
+        //    The naive formula   cgY = NSScreen.main!.frame.height - appkitY - h
+        //    is WRONG on secondary displays because NSScreen.main returns the
+        //    screen with keyboard focus, NOT necessarily the primary display.
+        //    Using CGDisplayBounds avoids any dependency on NSScreen.main.
+        //
+        //    Step A – convert selection to display-local coordinates.
+        //    AppKit origin is bottom-left of the display; CG origin is top-left.
         let localX         = screenRect.origin.x - screen.frame.origin.x
         let localFromBottom = screenRect.origin.y - screen.frame.origin.y
+        let localCGY       = screen.frame.height - localFromBottom - screenRect.height
 
-        //    Step B – flip Y to top-left origin and multiply to pixels.
-        let imgH = CGFloat(fullImage.height)   // native pixel height of this display
-        let pixX = localX           * scale
-        let pixY = imgH - (localFromBottom + screenRect.height) * scale
-
-        let cropRect = CGRect(
-            x: pixX,
-            y: pixY,
-            width:  screenRect.width  * scale,
-            height: screenRect.height * scale
+        //    Step B – offset by the display's own position in global CG space.
+        let displayBounds = CGDisplayBounds(displayID)   // top-left origin, Y down, points
+        let cgRect = CGRect(
+            x: displayBounds.origin.x + localX,
+            y: displayBounds.origin.y + localCGY,
+            width:  screenRect.width,
+            height: screenRect.height
         )
 
-        guard let cropped = fullImage.cropping(to: cropRect) else { return nil }
-        // Return the image at logical (point) size so NSImageView scales correctly.
-        return NSImage(cgImage: cropped, size: screenRect.size)
+        // 3. CGWindowListCreateImage composites every on-screen window via the
+        //    WindowServer, so windows floating above the desktop are included.
+        //    (CGDisplayCreateImage only reads the raw framebuffer – no windows.)
+        guard let cgImage = CGWindowListCreateImage(
+            cgRect,
+            .optionOnScreenOnly,
+            kCGNullWindowID,
+            .bestResolution
+        ) else { return nil }
+
+        return NSImage(cgImage: cgImage, size: screenRect.size)
     }
 }
