@@ -18,6 +18,7 @@
 		B47C1A2D3E4F506172839428 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941D /* AppKit.framework */; };
 		B47C1A2D3E4F506172839429 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941E /* Foundation.framework */; };
 		B47C1A2D3E4F50617283942A /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941F /* Carbon.framework */; };
+		B47C1A2D3E4F50617283942D /* AnnotationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		B47C1A2D3E4F506172839418 /* CaptureOverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureOverlayWindow.swift; sourceTree = "<group>"; };
 		B47C1A2D3E4F506172839419 /* CaptureOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureOverlayView.swift; sourceTree = "<group>"; };
 		B47C1A2D3E4F50617283941A /* ThumbnailWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailWindowController.swift; sourceTree = "<group>"; };
+		B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationWindowController.swift; sourceTree = "<group>"; };
 		B47C1A2D3E4F50617283941B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B47C1A2D3E4F50617283941C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B47C1A2D3E4F50617283941D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -77,6 +79,7 @@
 				B47C1A2D3E4F506172839418 /* CaptureOverlayWindow.swift */,
 				B47C1A2D3E4F506172839419 /* CaptureOverlayView.swift */,
 				B47C1A2D3E4F50617283941A /* ThumbnailWindowController.swift */,
+				B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */,
 				B47C1A2D3E4F50617283941B /* Info.plist */,
 				B47C1A2D3E4F50617283941C /* Assets.xcassets */,
 			);
@@ -169,6 +172,7 @@
 				B47C1A2D3E4F506172839424 /* CaptureOverlayWindow.swift in Sources */,
 				B47C1A2D3E4F506172839425 /* CaptureOverlayView.swift in Sources */,
 				B47C1A2D3E4F506172839426 /* ThumbnailWindowController.swift in Sources */,
+				B47C1A2D3E4F50617283942D /* AnnotationWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,8 +1,8 @@
 import AppKit
 
 /// Floating thumbnail shown after a capture.
-/// - Click → copies to clipboard immediately and dismisses.
-/// - No click → copies to clipboard and dismisses after 5 seconds.
+/// - Click → opens the annotation editor.
+/// - No click → copies original image to clipboard and dismisses after 5 seconds.
 final class ThumbnailWindowController: NSWindowController {
 
     private static var instance: ThumbnailWindowController?
@@ -59,7 +59,7 @@ final class ThumbnailWindowController: NSWindowController {
 
         // Content: image view inside a clickable container
         let clickView = ClickableView(frame: NSRect(origin: .zero, size: thumbSize))
-        clickView.onClick = { [weak self] in self?.copyAndDismiss() }
+        clickView.onClick = { [weak self] in self?.openEditor() }
         clickView.wantsLayer = true
         clickView.layer?.cornerRadius = 8
         clickView.layer?.masksToBounds = true
@@ -93,6 +93,15 @@ final class ThumbnailWindowController: NSWindowController {
     required init?(coder: NSCoder) { fatalError("not implemented") }
 
     // MARK: – Actions
+
+    /// Click → open annotation editor (dismiss thumbnail, timer cancelled).
+    private func openEditor() {
+        dismissTimer?.invalidate()
+        dismissTimer = nil
+        window?.orderOut(nil)
+        ThumbnailWindowController.instance = nil
+        AnnotationWindowController.show(image: capturedImage)
+    }
 
     private func copyAndDismiss() {
         let pb = NSPasteboard.general
