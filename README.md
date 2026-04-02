@@ -1,1 +1,1 @@
-# screencut
+# SnapFloat
