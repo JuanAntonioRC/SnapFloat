@@ -238,6 +238,13 @@ final class AnnotationWindowController: NSWindowController {
         copyBtn.target = self
         copyBtn.action = #selector(didCopy)
         bar.addSubview(copyBtn)
+        x += copyBtn.frame.width + 8
+
+        let saveBtn = sysBtn(title: "⤓ Guardar", width: 100)
+        saveBtn.frame.origin = NSPoint(x: x, y: (h - 26) / 2)
+        saveBtn.target = self
+        saveBtn.action = #selector(didSave)
+        bar.addSubview(saveBtn)
     }
 
     private func sysBtn(title: String, width: CGFloat) -> NSButton {
@@ -254,6 +261,15 @@ final class AnnotationWindowController: NSWindowController {
         let img = canvas.compositeImage()
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([img])
+        window?.close()
+    }
+
+    @objc private func didSave() {
+        let img = canvas.compositeImage()
+        if SettingsManager.shared.saveDirectoryURL == nil {
+            SettingsWindowController.show()
+            return
+        }
         SettingsManager.saveToDiskIfNeeded(img)
         window?.close()
     }

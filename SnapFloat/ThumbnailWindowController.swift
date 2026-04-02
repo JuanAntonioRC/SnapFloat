@@ -10,7 +10,6 @@ final class ThumbnailWindowController: NSWindowController {
 
     private var dismissTimer: Timer?
     private let capturedImage: NSImage
-    private var saveButton: NSButton!
 
     // MARK: – Public
 
@@ -32,14 +31,14 @@ final class ThumbnailWindowController: NSWindowController {
         let maxEdge: CGFloat = 200
         let scale = min(maxEdge / max(originalSize.width, 1),
                         maxEdge / max(originalSize.height, 1),
-                        1.0) // never upscale tiny selections
+                        1.0)
         let thumbSize = NSSize(width: max(originalSize.width * scale, 40),
                                height: max(originalSize.height * scale, 40))
 
-        let stripH: CGFloat = 28
-        let panelSize = NSSize(width: thumbSize.width, height: thumbSize.height + stripH)
+        let stripH: CGFloat = 32
+        let panelWidth = max(thumbSize.width, 100)
+        let panelSize = NSSize(width: panelWidth, height: thumbSize.height + stripH)
 
-        // Place in the bottom-right of the screen's visible frame
         let screen = NSScreen.main!
         let margin: CGFloat = 20
         let origin = NSPoint(
@@ -62,44 +61,38 @@ final class ThumbnailWindowController: NSWindowController {
 
         super.init(window: panel)
 
-        // ── Outer clickable container (handles click on image → open editor) ──
-        let clickView = ClickableView(frame: NSRect(origin: .zero, size: panelSize))
-        clickView.onClick = { [weak self] in self?.openEditor() }
-        clickView.wantsLayer = true
-        clickView.layer?.cornerRadius = 8
-        clickView.layer?.masksToBounds = true
-        clickView.layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
-        clickView.layer?.borderWidth = 1
+        // ── Container ──
+        let container = NSView(frame: NSRect(origin: .zero, size: panelSize))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 8
+        container.layer?.masksToBounds = true
+        container.layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
+        container.layer?.borderWidth = 1
 
-        // Image view — sits above the strip
-        let imageView = NSImageView(frame: NSRect(x: 0, y: stripH, width: thumbSize.width, height: thumbSize.height))
+        // ── Image area (click → open editor) ──
+        let clickView = ClickableView(frame: NSRect(x: 0, y: stripH, width: panelWidth, height: thumbSize.height))
+        clickView.onClick = { [weak self] in self?.openEditor() }
+        let imageView = NSImageView(frame: clickView.bounds)
         imageView.image = image
         imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.autoresizingMask = [.width, .height]
         clickView.addSubview(imageView)
+        container.addSubview(clickView)
 
-        // ── Bottom strip — blocks click propagation to clickView ──
-        let strip = EventBlockingView(frame: NSRect(x: 0, y: 0, width: panelSize.width, height: stripH))
+        // ── Bottom strip ──
+        let strip = EventBlockingView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: stripH))
         strip.wantsLayer = true
         strip.layer?.backgroundColor = NSColor(white: 0.13, alpha: 1).cgColor
-        clickView.addSubview(strip)
+        container.addSubview(strip)
 
-        // Save button inside the strip
-        let btn = NSButton(frame: strip.bounds)
-        btn.title = "Guardar"
-        btn.bezelStyle = .inline
-        btn.isBordered = false
-        btn.font = .systemFont(ofSize: 11, weight: .medium)
-        btn.contentTintColor = .white
-        btn.target = self
-        btn.action = #selector(saveTapped)
-        if let img = NSImage(systemSymbolName: "square.and.arrow.down", accessibilityDescription: nil) {
-            btn.image = img
-            btn.imagePosition = .imageLeading
-        }
-        strip.addSubview(btn)
-        saveButton = btn
+        // Save button inside strip
+        let saveBtn = StripButton(title: "Guardar", systemImage: "square.and.arrow.down")
+        saveBtn.frame.origin = NSPoint(x: (panelWidth - saveBtn.frame.width) / 2,
+                                       y: (stripH - saveBtn.frame.height) / 2)
+        saveBtn.onClick = { [weak self] in self?.saveTapped() }
+        strip.addSubview(saveBtn)
 
-        panel.contentView = clickView
+        panel.contentView = container
 
         // Fade in
         panel.alphaValue = 0
@@ -120,7 +113,6 @@ final class ThumbnailWindowController: NSWindowController {
 
     // MARK: – Actions
 
-    /// Image click → open annotation editor (dismiss thumbnail, timer cancelled).
     private func openEditor() {
         dismissTimer?.invalidate()
         dismissTimer = nil
@@ -129,13 +121,11 @@ final class ThumbnailWindowController: NSWindowController {
         AnnotationWindowController.show(image: capturedImage)
     }
 
-    /// Save button → save original to disk. If no folder configured, open Settings.
-    @objc private func saveTapped() {
+    private func saveTapped() {
         dismissTimer?.invalidate()
         dismissTimer = nil
 
         if SettingsManager.shared.saveDirectoryURL == nil {
-            // No save location set — open Settings so the user can configure one
             SettingsWindowController.show()
             return
         }
@@ -173,18 +163,57 @@ final class ThumbnailWindowController: NSWindowController {
 
 // MARK: – Helper views
 
+/// Clickable area for the image portion.
 private final class ClickableView: NSView {
     var onClick: (() -> Void)?
+    override func mouseDown(with event: NSEvent) { onClick?() }
+}
 
-    override func mouseDown(with event: NSEvent) {
-        onClick?()
+/// Swallows mouse events so they don't propagate to parent.
+private final class EventBlockingView: NSView {
+    override func mouseDown(with event: NSEvent) { /* consume */ }
+}
+
+/// Reusable strip button with its own rounded hover highlight.
+final class StripButton: NSView {
+    var onClick: (() -> Void)?
+
+    init(title: String, systemImage: String?) {
+        super.init(frame: NSRect(x: 0, y: 0, width: 80, height: 24))
+        wantsLayer = true
+        layer?.cornerRadius = 5
+
+        var xOff: CGFloat = 8
+
+        if let systemImage,
+           let img = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 10, weight: .medium)) {
+            let iv = NSImageView(frame: NSRect(x: xOff, y: 4, width: 16, height: 16))
+            iv.image = img
+            iv.contentTintColor = .white
+            addSubview(iv)
+            xOff += 18
+        }
+
+        let lbl = NSTextField(labelWithString: title)
+        lbl.font = .systemFont(ofSize: 11, weight: .medium)
+        lbl.textColor = .white
+        lbl.sizeToFit()
+        lbl.frame.origin = NSPoint(x: xOff, y: (24 - lbl.frame.height) / 2)
+        addSubview(lbl)
+
+        frame.size.width = xOff + lbl.frame.width + 8
     }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func mouseDown(with event: NSEvent) { onClick?() }
 
     override func mouseEntered(with event: NSEvent) {
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.7).cgColor
+        layer?.backgroundColor = NSColor.white.withAlphaComponent(0.15).cgColor
     }
     override func mouseExited(with event: NSEvent) {
-        layer?.borderColor = NSColor.white.withAlphaComponent(0.25).cgColor
+        layer?.backgroundColor = .clear
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -193,9 +222,4 @@ private final class ClickableView: NSView {
                                       options: [.mouseEnteredAndExited, .activeAlways],
                                       owner: self))
     }
-}
-
-/// A plain view that swallows mouse events so they don't propagate to ClickableView.
-private final class EventBlockingView: NSView {
-    override func mouseDown(with event: NSEvent) { /* consume */ }
 }
