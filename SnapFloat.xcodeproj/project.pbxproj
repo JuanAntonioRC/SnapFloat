@@ -19,6 +19,7 @@
 		B47C1A2D3E4F506172839429 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941E /* Foundation.framework */; };
 		B47C1A2D3E4F50617283942A /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283941F /* Carbon.framework */; };
 		B47C1A2D3E4F50617283942D /* AnnotationWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283942C /* AnnotationWindowController.swift */; };
+		B47C1A2D3E4F50617283942F /* ScreenCaptureKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B47C1A2D3E4F50617283942E /* ScreenCaptureKit.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,6 +37,7 @@
 		B47C1A2D3E4F50617283941D /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		B47C1A2D3E4F50617283941E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		B47C1A2D3E4F50617283941F /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		B47C1A2D3E4F50617283942E /* ScreenCaptureKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenCaptureKit.framework; path = System/Library/Frameworks/ScreenCaptureKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +48,7 @@
 				B47C1A2D3E4F506172839428 /* AppKit.framework in Frameworks */,
 				B47C1A2D3E4F506172839429 /* Foundation.framework in Frameworks */,
 				B47C1A2D3E4F50617283942A /* Carbon.framework in Frameworks */,
+				B47C1A2D3E4F50617283942F /* ScreenCaptureKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -92,6 +95,7 @@
 				B47C1A2D3E4F50617283941D /* AppKit.framework */,
 				B47C1A2D3E4F50617283941E /* Foundation.framework */,
 				B47C1A2D3E4F50617283941F /* Carbon.framework */,
+				B47C1A2D3E4F50617283942E /* ScreenCaptureKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";

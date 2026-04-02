@@ -1,65 +1,134 @@
 import AppKit
-import CoreGraphics
+import ScreenCaptureKit
 
-/// Captures a region of the screen and hands the image to ThumbnailWindowController.
-/// `screenRect` must be in AppKit screen coordinates (origin bottom-left of primary display).
+// MARK: – Errors
+
+private enum CaptureError: Error {
+    case displayNotFound, noContent, frameFailed
+}
+
+// MARK: – Manager
+
+/// Captures a region of the screen using ScreenCaptureKit (macOS 13+).
+/// SCKit routes through the WindowServer compositor, so all on-screen windows
+/// are included — unlike CGDisplayCreateImage (raw framebuffer, no windows)
+/// or CGWindowListCreateImage (deprecated + broken in macOS 14+).
 final class ScreenCaptureManager {
 
     static func capture(rect screenRect: NSRect) {
-        guard let image = captureImage(rect: screenRect) else {
-            NSLog("SnapFloat: capture failed – Screen Recording permission granted?")
-            return
-        }
-        ThumbnailWindowController.show(image: image, originalSize: screenRect.size)
-    }
-
-    // MARK: – Private
-
-    private static func captureImage(rect screenRect: NSRect) -> NSImage? {
-        // 1. Find which screen contains the selection.
         let centre = NSPoint(x: screenRect.midX, y: screenRect.midY)
         let screen = NSScreen.screens.first { $0.frame.contains(centre) } ?? NSScreen.screens.first!
 
+        Task {
+            do {
+                let img = try await doCapture(rect: screenRect, screen: screen)
+                await MainActor.run {
+                    ThumbnailWindowController.show(image: img, originalSize: screenRect.size)
+                }
+            } catch {
+                NSLog("SnapFloat: capture failed – \(error)")
+            }
+        }
+    }
+
+    // MARK: Private
+
+    private static func doCapture(rect: NSRect, screen: NSScreen) async throws -> NSImage {
         guard let nsNum = screen.deviceDescription[
             NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
-        else { return nil }
+        else { throw CaptureError.displayNotFound }
         let displayID = CGDirectDisplayID(nsNum.uint32Value)
 
-        // 2. Build the CG rect using CGDisplayBounds.
-        //
-        //    WHY: CGWindowListCreateImage needs global CG coordinates
-        //    (origin = top-left of primary display, Y increases downward).
-        //
-        //    The naive formula   cgY = NSScreen.main!.frame.height - appkitY - h
-        //    is WRONG on secondary displays because NSScreen.main returns the
-        //    screen with keyboard focus, NOT necessarily the primary display.
-        //    Using CGDisplayBounds avoids any dependency on NSScreen.main.
-        //
-        //    Step A – convert selection to display-local coordinates.
-        //    AppKit origin is bottom-left of the display; CG origin is top-left.
-        let localX         = screenRect.origin.x - screen.frame.origin.x
-        let localFromBottom = screenRect.origin.y - screen.frame.origin.y
-        let localCGY       = screen.frame.height - localFromBottom - screenRect.height
+        let scDisplay = try await findSCDisplay(id: displayID)
 
-        //    Step B – offset by the display's own position in global CG space.
-        let displayBounds = CGDisplayBounds(displayID)   // top-left origin, Y down, points
-        let cgRect = CGRect(
-            x: displayBounds.origin.x + localX,
-            y: displayBounds.origin.y + localCGY,
-            width:  screenRect.width,
-            height: screenRect.height
-        )
+        // Capture every window on this display (no exclusions)
+        let filter = SCContentFilter(display: scDisplay, excludingWindows: [])
 
-        // 3. CGWindowListCreateImage composites every on-screen window via the
-        //    WindowServer, so windows floating above the desktop are included.
-        //    (CGDisplayCreateImage only reads the raw framebuffer – no windows.)
-        guard let cgImage = CGWindowListCreateImage(
-            cgRect,
-            .optionOnScreenOnly,
-            kCGNullWindowID,
-            .bestResolution
-        ) else { return nil }
+        // Selection in display-local coordinates: top-left origin, Y down, points.
+        let localX = rect.origin.x - screen.frame.origin.x
+        let localY = screen.frame.height - (rect.origin.y - screen.frame.origin.y) - rect.height
 
-        return NSImage(cgImage: cgImage, size: screenRect.size)
+        let config = SCStreamConfiguration()
+        config.sourceRect = CGRect(x: localX, y: localY, width: rect.width, height: rect.height)
+        config.width  = max(1, Int(rect.width  * screen.backingScaleFactor))
+        config.height = max(1, Int(rect.height * screen.backingScaleFactor))
+
+        let cgImage: CGImage
+        if #available(macOS 14.0, *) {
+            // One-shot API introduced in macOS 14 — simple and reliable.
+            cgImage = try await SCScreenshotManager.captureImage(
+                contentFilter: filter, configuration: config)
+        } else {
+            // macOS 13: capture one frame via SCStream then stop.
+            cgImage = try await StreamCaptureHelper().capture(filter: filter, config: config)
+        }
+
+        return NSImage(cgImage: cgImage, size: rect.size)
+    }
+
+    /// Resolves the SCDisplay that matches a given CGDirectDisplayID.
+    private static func findSCDisplay(id displayID: CGDirectDisplayID) async throws -> SCDisplay {
+        try await withCheckedThrowingContinuation { cont in
+            SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { content, error in
+                if let error {
+                    cont.resume(throwing: error); return
+                }
+                guard let display = content?.displays.first(where: { $0.displayID == displayID }) else {
+                    cont.resume(throwing: CaptureError.displayNotFound); return
+                }
+                cont.resume(returning: display)
+            }
+        }
+    }
+}
+
+// MARK: – SCStream one-shot helper (macOS 13 fallback)
+
+/// Wraps SCStream to produce a single CGImage then stops.
+private final class StreamCaptureHelper: NSObject, SCStreamOutput, SCStreamDelegate {
+    private var cont: CheckedContinuation<CGImage, Error>?
+    private var stream: SCStream?
+    private var done = false
+
+    func capture(filter: SCContentFilter, config: SCStreamConfiguration) async throws -> CGImage {
+        stream = SCStream(filter: filter, configuration: config, delegate: self)
+        try stream!.addStreamOutput(self, type: .screen,
+                                    sampleHandlerQueue: .global(qos: .userInitiated))
+        return try await withCheckedThrowingContinuation { [weak self] c in
+            self?.cont = c
+            Task { [weak self] in
+                do    { try await self?.stream?.startCapture() }
+                catch { self?.finish(.failure(error)) }
+            }
+        }
+    }
+
+    func stream(_ stream: SCStream,
+                didOutputSampleBuffer buf: CMSampleBuffer,
+                of type: SCStreamOutputType) {
+        guard type == .screen else { return }
+        Task { try? await stream.stopCapture() }
+        guard let pb = buf.imageBuffer else {
+            finish(.failure(CaptureError.frameFailed)); return
+        }
+        let ci = CIImage(cvPixelBuffer: pb)
+        guard let cg = CIContext().createCGImage(ci, from: ci.extent) else {
+            finish(.failure(CaptureError.frameFailed)); return
+        }
+        finish(.success(cg))
+    }
+
+    func stream(_ stream: SCStream, didStopWithError error: Error) {
+        finish(.failure(error))
+    }
+
+    private func finish(_ result: Result<CGImage, Error>) {
+        guard !done else { return }
+        done = true
+        switch result {
+        case .success(let img): cont?.resume(returning: img)
+        case .failure(let err): cont?.resume(throwing: err)
+        }
+        cont = nil
     }
 }
