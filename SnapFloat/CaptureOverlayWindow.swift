@@ -31,12 +31,13 @@ final class CaptureOverlayWindow: NSWindow {
     // MARK: – Init
 
     private init(screen: NSScreen) {
+        // NSWindow's designated initializer does NOT include `screen:`.
+        // We pass screen.frame (global AppKit coords) so the window lands on the right display.
         super.init(
             contentRect: screen.frame,
             styleMask: .borderless,
             backing: .buffered,
-            defer: false,
-            screen: screen
+            defer: false
         )
         level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)))
         backgroundColor = .clear
