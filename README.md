@@ -26,15 +26,15 @@ Built with **Swift**, **AppKit**, and **ScreenCaptureKit**. No Dock icon—only 
 
 | Area | What it does |
 |------|----------------|
-| **Capture** | Full-screen overlay on the display under the cursor; drag to define a rectangle. Semi-transparent dimming outside the selection, live size label (e.g. `1920 × 1080`). |
+| **Capture** | Full-screen overlay on **all connected displays** simultaneously; drag on any screen to define a rectangle. Semi-transparent dimming outside the selection, live size label (e.g. `1920 × 1080`). |
 | **Global shortcut** | **Configurable** in **Settings** (default **⇧⌘2**). Implemented with **Carbon** (`RegisterEventHotKey`) so **Accessibility** permission is **not** required for the hotkey. The menu bar shows the current shortcut next to **Capture Area**. |
 | **Menu bar** | SF Symbol `camera.viewfinder`; **Capture Area** (with shortcut in the title), **Settings…** (⌘,), **Quit SnapFloat** (⌘Q). |
 | **Settings** | **Shortcut** (click the field to record; combinations with **3 components** save automatically; **2-component** combos need **Save**). **On capture:** copy to clipboard / do nothing / save to folder / copy and save. **Preview duration** (1–30 s, default 5) for the thumbnail. **Save location** (optional folder + **Choose…**). **Launch at login** (`SMAppService`). |
 | **Post-capture (immediate)** | Right after pixels are captured, **`SettingsManager.performCaptureAction`** runs according to **On capture** (clipboard and/or PNG under the chosen folder). File names look like `SnapFloat_yyyy-MM-dd_HH-mm-ss.png`. |
-| **Thumbnail** | Small **floating** panel (max ~200 pt on the long edge) **bottom-right** of the main screen’s visible frame, with fade-in. **Copy** / **Save** strip buttons; **click image** → annotation editor. Auto-**dismiss** after **preview duration** (does not re-run the capture action on timeout). |
-| **Annotations** | Window **SnapFloat — Annotate**; **freehand** strokes, **7 colors**, **↩ Undo**, **✓ Copy**, **⤓ Save** (save uses the same folder settings as the thumbnail). |
+| **Thumbnail** | Small **floating** panel (max ~200 pt on the long edge) **bottom-right of the capture screen**, with fade-in. **Copy** / **Save** strip buttons; **click image** → annotation editor. Auto-**dismiss** after **preview duration** (does not re-run the capture action on timeout). |
+| **Annotations** | Window **SnapFloat — Annotate**; tools: **Pen**, **Line**, **Arrow**, **Rectangle**, **Oval**, **Text**; **stroke width slider**; **7 colors**; **Undo**, **Copy**, **Save**. Window is **resizable** — image maintains aspect ratio with dark letterboxing. |
 | **Cancel capture** | **Escape** closes the selection overlay; very small drags (under ~5 pt) cancel without capturing. |
-| **Multi-display** | Overlay targets the screen containing the mouse; captures use the correct display via cached `SCDisplay` metadata. |
+| **Multi-display** | Overlay appears on **all screens** simultaneously. Single click starts the selection on any display. Thumbnail appears on the same screen as the capture. |
 | **Notifications** | When a file is saved to disk, a **Screenshot saved** notification can appear with **Show in Finder** (standard notification permission). |
 
 ---
@@ -85,7 +85,7 @@ The global shortcut is registered with **Carbon** (`RegisterEventHotKey`), not v
 1. Launch **SnapFloat**. It appears only in the **menu bar**.
 2. Grant **Screen Recording** when macOS asks (**System Settings → Privacy & Security → Screen Recording**).
 3. Start capture with your **shortcut** (default **⇧⌘2**) or **Capture Area** from the menu.
-4. **Click-drag** on the dimmed overlay to select a region; release to capture.
+4. **Click-drag** on the dimmed overlay to select a region on **any screen**; release to capture.
 5. According to **Settings → On capture**, the image may be **copied**, **saved**, **both**, or **neither** right away.
 6. While the **thumbnail** is visible:
    - **Wait** until the preview timer ends → thumbnail closes (clipboard/disk actions already ran per settings).
@@ -145,7 +145,7 @@ Hotkey / menu “Capture Area”
 | `CaptureOverlayWindow` / `CaptureOverlayView` | Borderless overlay; crosshair; Escape; maps flipped view coords to AppKit screen space. |
 | `ScreenCaptureManager` | Cached `SCDisplay` map; `SCContentFilter` + `SCStreamConfiguration`; macOS 14+ screenshot API vs. stream helper on 13. |
 | `ThumbnailWindowController` | `NSPanel` thumbnail, configurable timer, Copy/Save, click → editor. |
-| `AnnotationWindowController` | `DrawingCanvasView` + toolbar (colors, undo, copy, save); `compositeImage()` rasterizes strokes at image resolution. |
+| `AnnotationWindowController` | `DrawingCanvasView` + toolbar (tool picker, width slider, colors, undo, copy, save); 6 tools (pen, line, arrow, rect, oval, text); resizable window with aspect-ratio-safe canvas; `compositeImage()` rasterizes at full image resolution. |
 | `main.swift` | Minimal entry: `NSApplication` + delegate + `run()`. |
 
 ---
