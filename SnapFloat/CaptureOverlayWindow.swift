@@ -17,7 +17,6 @@ final class CaptureOverlayWindow: NSWindow {
             win.orderFront(nil)
         }
 
-        NSCursor.crosshair.push()
         NSApp.activate(ignoringOtherApps: true)
 
         // Make the window under the cursor key so it receives events
@@ -28,7 +27,7 @@ final class CaptureOverlayWindow: NSWindow {
     }
 
     static func dismiss() {
-        NSCursor.pop()
+        NSCursor.arrow.set()
         for win in instances { win.orderOut(nil) }
         instances.removeAll()
     }
@@ -61,9 +60,10 @@ final class CaptureOverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
-        // When user clicks on this overlay, make it key so it receives drag/up events
+        // When user clicks on this overlay, make it key and forward the event
+        // to the view so the selection starts immediately (no double-click needed).
         makeKeyAndOrderFront(nil)
         makeFirstResponder(contentView)
-        super.mouseDown(with: event)
+        contentView?.mouseDown(with: event)
     }
 }
