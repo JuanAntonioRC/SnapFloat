@@ -17,6 +17,8 @@ final class SettingsWindowController: NSWindowController {
     private var pathLabel: NSTextField!
     private var browseButton: NSButton!
     private var launchCheck: NSButton!
+    private var fullQualityCheck: NSButton!
+    private var qualityHint: NSTextField!
 
     // MARK: – Public
 
@@ -36,7 +38,7 @@ final class SettingsWindowController: NSWindowController {
 
     init() {
         let winWidth: CGFloat = 460
-        let winHeight: CGFloat = 420
+        let winHeight: CGFloat = 490
 
         let screen = NSScreen.main!
         let origin = NSPoint(
@@ -110,8 +112,24 @@ final class SettingsWindowController: NSWindowController {
         capturePopup.action = #selector(captureActionChanged)
         parent.addSubview(capturePopup)
 
-        // ── Preview duration ──
+        // ── Capture quality ──
         y -= 40
+        addSection("Capture quality:", at: m, y: y, in: parent)
+
+        y -= 28
+        fullQualityCheck = NSButton(checkboxWithTitle: "Full quality (Retina)", target: self, action: #selector(fullQualityToggled))
+        fullQualityCheck.frame.origin = NSPoint(x: m, y: y)
+        parent.addSubview(fullQualityCheck)
+
+        y -= 18
+        qualityHint = makeLabel("")
+        qualityHint.font = .systemFont(ofSize: 11)
+        qualityHint.textColor = .secondaryLabelColor
+        qualityHint.frame = NSRect(x: m + 18, y: y, width: fieldW, height: 14)
+        parent.addSubview(qualityHint)
+
+        // ── Preview duration ──
+        y -= 30
         addSection("Preview duration:", at: m, y: y, in: parent)
 
         y -= 30
@@ -180,6 +198,9 @@ final class SettingsWindowController: NSWindowController {
         updatePathUI()
 
         launchCheck.state = settings.launchAtLogin ? .on : .off
+
+        fullQualityCheck.state = settings.fullQualityCapture ? .on : .off
+        updateQualityHint()
     }
 
     private func updateDurationLabel() {
@@ -234,6 +255,19 @@ final class SettingsWindowController: NSWindowController {
             guard let self, response == .OK, let url = panel.url else { return }
             self.settings.saveLocation = url.path
             self.updatePathUI()
+        }
+    }
+
+    @objc private func fullQualityToggled() {
+        settings.fullQualityCapture = fullQualityCheck.state == .on
+        updateQualityHint()
+    }
+
+    private func updateQualityHint() {
+        if settings.fullQualityCapture {
+            qualityHint.stringValue = "Captures at 2\u{00D7} pixel density. Sharper, larger files."
+        } else {
+            qualityHint.stringValue = "Captures at 1\u{00D7} pixel density. Smaller files."
         }
     }
 

@@ -67,11 +67,22 @@ final class ScreenCaptureManager {
         let localX = rect.origin.x - screen.frame.origin.x
         let localY = screen.frame.height - (rect.origin.y - screen.frame.origin.y) - rect.height
 
+        let fullQuality = SettingsManager.shared.fullQualityCapture
+        let scaleFactor: CGFloat = fullQuality ? screen.backingScaleFactor : 1.0
+
         let config = SCStreamConfiguration()
         config.sourceRect  = CGRect(x: localX, y: localY, width: rect.width, height: rect.height)
-        config.width       = max(1, Int(rect.width  * screen.backingScaleFactor))
-        config.height      = max(1, Int(rect.height * screen.backingScaleFactor))
+        config.width       = max(1, Int(rect.width  * scaleFactor))
+        config.height      = max(1, Int(rect.height * scaleFactor))
         config.showsCursor = false
+
+        if fullQuality {
+            config.pixelFormat = kCVPixelFormatType_32BGRA
+            config.colorSpaceName = CGColorSpace.sRGB
+            if #available(macOS 14.2, *) {
+                config.captureResolution = .best
+            }
+        }
 
         let cgImage: CGImage
         if #available(macOS 14.0, *) {
@@ -81,7 +92,16 @@ final class ScreenCaptureManager {
             cgImage = try await StreamCaptureHelper().capture(filter: filter, config: config)
         }
 
-        return NSImage(cgImage: cgImage, size: rect.size)
+        if fullQuality {
+            // Build NSImage with a bitmap rep that preserves every Retina pixel.
+            let rep = NSBitmapImageRep(cgImage: cgImage)
+            rep.size = rect.size                  // point size for display
+            let image = NSImage(size: rect.size)
+            image.addRepresentation(rep)
+            return image
+        } else {
+            return NSImage(cgImage: cgImage, size: rect.size)
+        }
     }
 
     /// Returns a cached SCDisplay, refreshing the cache once if it's a miss
@@ -138,7 +158,11 @@ private final class StreamCaptureHelper: NSObject, SCStreamOutput, SCStreamDeleg
         Task { try? await stream.stopCapture() }
         guard let pb = buf.imageBuffer else { finish(.failure(CaptureError.frameFailed)); return }
         let ci = CIImage(cvPixelBuffer: pb)
-        guard let cg = CIContext().createCGImage(ci, from: ci.extent) else {
+        let ctx = CIContext(options: [.workingColorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      .highQualityDownsample: true])
+        guard let cg = ctx.createCGImage(ci, from: ci.extent,
+                                         format: .RGBA8,
+                                         colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!) else {
             finish(.failure(CaptureError.frameFailed)); return
         }
         finish(.success(cg))
