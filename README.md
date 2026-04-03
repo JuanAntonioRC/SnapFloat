@@ -1,4 +1,5 @@
 # SnapFloat
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/juanantoniorc)
 
 A lightweight macOS menu-bar screenshot tool. Select a region, get a floating preview, annotate, copy or save — all without leaving your workflow.
 
