@@ -1,200 +1,126 @@
 # SnapFloat
 
-**SnapFloat** is a lightweight macOS menu-bar utility for **region screenshots**: select an area on screen, get a floating thumbnail, then **copy**, **save to disk**, or **open a simple annotation editor** before copying or saving.
+A lightweight macOS menu-bar screenshot tool. Select a region, get a floating preview, annotate, copy or save — all without leaving your workflow.
 
-Built with **Swift**, **AppKit**, and **ScreenCaptureKit**. No Dock icon—only a status item and a **configurable** global shortcut (default **⇧⌘2**).
+**[Download the latest release](https://github.com/JuanAntonioRC/SnapFloat/releases/latest)**
 
----
-
-## Table of contents
-
-- [Features](#features)
-- [Settings](#settings)
-- [Requirements](#requirements)
-- [Permissions](#permissions)
-- [How to use](#how-to-use)
-- [Build from source](#build-from-source)
-- [Architecture](#architecture)
-- [Project layout](#project-layout)
-- [Technical notes](#technical-notes)
-- [Contributing](#contributing)
-- [License](#license)
+> Requires **macOS 13 (Ventura)** or later.
 
 ---
 
-## Features
+## Install
 
-| Area | What it does |
-|------|----------------|
-| **Capture** | Full-screen overlay on **all connected displays** simultaneously; drag on any screen to define a rectangle. Semi-transparent dimming outside the selection, live size label (e.g. `1920 × 1080`). |
-| **Global shortcut** | **Configurable** in **Settings** (default **⇧⌘2**). Implemented with **Carbon** (`RegisterEventHotKey`) so **Accessibility** permission is **not** required for the hotkey. The menu bar shows the current shortcut next to **Capture Area**. |
-| **Menu bar** | SF Symbol `camera.viewfinder`; **Capture Area** (with shortcut in the title), **Settings…** (⌘,), **Quit SnapFloat** (⌘Q). |
-| **Settings** | **Shortcut** (click the field to record; combinations with **3 components** save automatically; **2-component** combos need **Save**). **On capture:** copy to clipboard / do nothing / save to folder / copy and save. **Preview duration** (1–30 s, default 5) for the thumbnail. **Save location** (optional folder + **Choose…**). **Launch at login** (`SMAppService`). |
-| **Post-capture (immediate)** | Right after pixels are captured, **`SettingsManager.performCaptureAction`** runs according to **On capture** (clipboard and/or PNG under the chosen folder). File names look like `SnapFloat_yyyy-MM-dd_HH-mm-ss.png`. |
-| **Thumbnail** | Small **floating** panel (max ~200 pt on the long edge) **bottom-right of the capture screen**, with fade-in. **Copy** / **Save** strip buttons; **click image** → annotation editor. Auto-**dismiss** after **preview duration** (does not re-run the capture action on timeout). |
-| **Annotations** | Window **SnapFloat — Annotate**; tools: **Pen**, **Line**, **Arrow**, **Rectangle**, **Oval**, **Text**; **stroke width slider**; **7 colors**; **Undo**, **Copy**, **Save**. Window is **resizable** — image maintains aspect ratio with dark letterboxing. |
-| **Cancel capture** | **Escape** closes the selection overlay; very small drags (under ~5 pt) cancel without capturing. |
-| **Multi-display** | Overlay appears on **all screens** simultaneously. Single click starts the selection on any display. Thumbnail appears on the same screen as the capture. |
-| **Notifications** | When a file is saved to disk, a **Screenshot saved** notification can appear with **Show in Finder** (standard notification permission). |
+1. Download **`SnapFloat-x.x.dmg`** from the [Releases page](https://github.com/JuanAntonioRC/SnapFloat/releases/latest).
+2. Open the `.dmg` and drag **SnapFloat** into **Applications**.
+3. Launch it — the app lives in the **menu bar** (no Dock icon).
+4. Grant **Screen Recording** when macOS prompts you.
+5. Press **⇧⌘2** to capture.
+
+---
+
+## What it does
+
+- **Region capture** — press **⇧⌘2** (or your custom shortcut) and drag on any screen. A dimmed overlay shows the selection with a live size label.
+- **Multi-monitor** — the overlay appears on all connected displays. Click and drag on whichever screen you want.
+- **Floating preview** — a small thumbnail appears on the screen where you captured. It auto-dismisses after a configurable duration.
+- **Quick actions** — from the preview: **Copy** to clipboard, **Save** to disk, or **click** to open the annotation editor.
+- **Annotation editor** — draw on your screenshot with **Pen**, **Line**, **Arrow**, **Rectangle**, **Oval**, or **Text**. Adjustable stroke width, 7 colors. The window is resizable and preserves the image aspect ratio.
+- **Auto-actions** — configure what happens the moment you capture: copy to clipboard, save to a folder, both, or nothing.
+- **Configurable shortcut** — change the hotkey in Settings. Uses Carbon hotkeys so no Accessibility permission is needed.
+- **Launch at login** — toggle in Settings.
+- **Save notifications** — when saving to disk, a notification with **Show in Finder** appears.
 
 ---
 
 ## Settings
 
-Open **Settings…** from the menu bar (or **⌘,** when the menu is open).
+Open from the menu bar or press **⌘,** when the menu is visible.
 
-| Option | Behavior |
-|--------|----------|
-| **Shortcut** | Click the field, then press your combo. **⌘** or **⌃** must be part of the final key event. **Escape** cancels recording. |
-| **On capture** | Controls what happens **immediately** after a successful capture (before you interact with the thumbnail). |
-| **Preview duration** | How long the thumbnail stays visible if you do nothing (1–30 seconds). |
-| **Save location** | Enable saving, pick a folder; required for **Save** on the thumbnail or in the editor when using disk. |
-| **Launch at login** | Registers the app with **SMAppService** (macOS login item APIs). |
-
----
-
-## Requirements
-
-- **macOS 13.0 (Ventura)** or later (`LSMinimumSystemVersion` / `MACOSX_DEPLOYMENT_TARGET` = 13.0).
-- **Screen Recording** permission for the app (see below).
-- **Xcode** (recent release recommended) if you are building from source.
-
----
-
-## Permissions
-
-### Screen Recording
-
-SnapFloat uses **ScreenCaptureKit** (`SCScreenshotManager` on macOS 14+, `SCStream` fallback on macOS 13) to grab pixels from the selected rectangle.
-
-- The bundle includes **`NSScreenCaptureUsageDescription`** (Spanish string in `Info.plist`) so macOS shows a clear prompt when access is needed.
-- On first launch, `ScreenCaptureManager.prepareCapture()` triggers **one** `SCShareableContent` fetch to populate permission UI and **cache** `SCDisplay` objects. Later captures reuse that cache so **repeated permission dialogs** (a common issue on macOS 14/15 when calling shareable content APIs too often) are avoided.
-
-### Notifications (optional)
-
-If you save screenshots to disk, the app may show a local notification with **Show in Finder**. macOS will prompt for notification permission when the app requests it.
-
-### What SnapFloat does *not* need for the hotkey
-
-The global shortcut is registered with **Carbon** (`RegisterEventHotKey`), not via `CGEvent.tap` or similar, so you do **not** need to grant **Accessibility** just to use the shortcut.
-
----
-
-## How to use
-
-1. Launch **SnapFloat**. It appears only in the **menu bar**.
-2. Grant **Screen Recording** when macOS asks (**System Settings → Privacy & Security → Screen Recording**).
-3. Start capture with your **shortcut** (default **⇧⌘2**) or **Capture Area** from the menu.
-4. **Click-drag** on the dimmed overlay to select a region on **any screen**; release to capture.
-5. According to **Settings → On capture**, the image may be **copied**, **saved**, **both**, or **neither** right away.
-6. While the **thumbnail** is visible:
-   - **Wait** until the preview timer ends → thumbnail closes (clipboard/disk actions already ran per settings).
-   - **Copy** / **Save** on the strip for an extra manual action (Save opens Settings if no folder is set).
-   - **Click the image** → **SnapFloat — Annotate**; use **✓ Copy** or **⤓ Save**, then the window closes.
+| Option | Description |
+|--------|-------------|
+| **Shortcut** | Click the field and press your key combination. |
+| **On capture** | What happens immediately after capturing (copy / save / both / nothing). |
+| **Preview duration** | How long the thumbnail stays visible (1–30 seconds). |
+| **Save location** | Folder for saved screenshots. Required for the Save button. |
+| **Launch at login** | Start SnapFloat when you log in. |
 
 ---
 
 ## Build from source
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/JuanAntonioRC/SnapFloat.git
-   cd SnapFloat
-   ```
-2. Open **`SnapFloat.xcodeproj`** in Xcode.
-3. Select the **SnapFloat** scheme and your Mac as run destination.
-4. **Product → Run** (⌘R).
-
-The app is configured as a **menu-bar–only** agent (`LSUIElement` = true): no Dock icon.
-
-**Identifiers (from the project):**
-
-- **Bundle ID:** `com.snapfloat.SnapFloat`
-- **Marketing version:** `1.0` (as set in Xcode; adjust as you release)
-
-**Optional:** `generate_icon.swift` at the repo root is a helper script to generate app icon assets (not part of the Xcode target by default).
-
----
-
-## Architecture
-
-High-level flow:
-
-```text
-App launch
-  → AppDelegate: accessory policy, prepareCapture(), menu bar, notifications,
-     HotkeyManager (shortcut from SettingsManager), observer for hotkey changes
-Hotkey / menu “Capture Area”
-  → CaptureOverlayWindow (per-screen frame, high window level)
-  → CaptureOverlayView: selection rect, coordinate flip → global screen rect
-  → (short delay) ScreenCaptureManager.capture(rect:)
-        → SettingsManager.performCaptureAction (clipboard / disk per prefs)
-        → ThumbnailWindowController.show
-              → Copy / Save strip, or click → AnnotationWindowController
-              → timer → animate out (dismiss only)
+```bash
+git clone https://github.com/JuanAntonioRC/SnapFloat.git
+cd SnapFloat
+open SnapFloat.xcodeproj
 ```
 
-### Key components
+Select the **SnapFloat** scheme, pick your Mac as the destination, and hit **⌘R**.
 
-| Component | Role |
-|-----------|------|
-| `AppDelegate` | Status item; wires hotkey and menu; updates capture menu title when shortcut changes; notification delegate for **Show in Finder**. |
-| `HotkeyManager` | Carbon hotkey with **configurable** key code + modifiers; `InstallEventHandler` + `RegisterEventHotKey`; display string helpers. |
-| `SettingsManager` | `UserDefaults`: capture action, preview duration, save folder, launch at login, hotkey; `performCaptureAction`, `saveToDiskIfNeeded`, notifications. |
-| `SettingsWindowController` | Preferences window; includes `ShortcutRecorderView` (local event monitor for recording). |
-| `CaptureOverlayWindow` / `CaptureOverlayView` | Borderless overlay; crosshair; Escape; maps flipped view coords to AppKit screen space. |
-| `ScreenCaptureManager` | Cached `SCDisplay` map; `SCContentFilter` + `SCStreamConfiguration`; macOS 14+ screenshot API vs. stream helper on 13. |
-| `ThumbnailWindowController` | `NSPanel` thumbnail, configurable timer, Copy/Save, click → editor. |
-| `AnnotationWindowController` | `DrawingCanvasView` + toolbar (tool picker, width slider, colors, undo, copy, save); 6 tools (pen, line, arrow, rect, oval, text); resizable window with aspect-ratio-safe canvas; `compositeImage()` rasterizes at full image resolution. |
-| `main.swift` | Minimal entry: `NSApplication` + delegate + `run()`. |
+To build a DMG locally:
 
----
-
-## Project layout
-
-```text
-SnapFloat/
-├── SnapFloat.xcodeproj/          # Xcode project
-├── SnapFloat/
-│   ├── main.swift
-│   ├── AppDelegate.swift
-│   ├── HotkeyManager.swift
-│   ├── SettingsManager.swift
-│   ├── SettingsWindowController.swift   # includes ShortcutRecorderView
-│   ├── ScreenCaptureManager.swift
-│   ├── CaptureOverlayWindow.swift
-│   ├── CaptureOverlayView.swift
-│   ├── ThumbnailWindowController.swift
-│   ├── AnnotationWindowController.swift
-│   ├── Info.plist
-│   └── Assets.xcassets/
-├── generate_icon.swift             # optional icon generator (repo root)
-├── .gitignore
-└── README.md
+```bash
+./scripts/build-dmg.sh
 ```
 
 ---
 
-## Technical notes
+## Privacy
 
-- **Coordinate systems:** The overlay view is **flipped** (origin top-left). Before capture, the selection is converted to **global AppKit screen coordinates** for `ScreenCaptureManager`, which then converts to **display-local** space with Y flipped for `SCStreamConfiguration.sourceRect`.
-- **Retina:** Capture width/height use the screen’s **`backingScaleFactor`** so bitmaps match physical pixels.
-- **Overlay vs. capture:** A small **delay (~60 ms)** after dismissing the overlay avoids capturing the dimmer window in the shot.
-- **Cursor:** `showsCursor = false` on the stream configuration so the pointer is not baked into the image.
-- **Security / privacy:** Only standard AppKit pasteboard and local file APIs are used; images are not sent to any server (fully local app).
+- **Screen Recording** permission is required for capturing.
+- The global shortcut uses **Carbon** (`RegisterEventHotKey`) — **Accessibility permission is not needed**.
+- SnapFloat is fully local. No data is sent to any server. Images only go to the clipboard or a folder you choose.
 
 ---
 
 ## Contributing
 
-Issues and pull requests are welcome. When changing capture or permission-related code, test on a **clean user** or after resetting Screen Recording consent to ensure you do not reintroduce repeated system prompts.
+Issues and pull requests are welcome. If you're changing capture or permission-related code, test after resetting Screen Recording consent to make sure repeated permission dialogs don't resurface.
 
 ---
 
 ## License
 
-SnapFloat is released under the **[MIT License](LICENSE)**.
+[MIT License](LICENSE) — free to use, modify, and distribute.
 
-In short: you may **use**, **modify**, **copy**, and **distribute** the software (including commercially) **free of charge**, as long as you keep the copyright and permission notice in copies. The software is provided **as is**, without warranty.
+---
 
-See the [`LICENSE`](LICENSE) file for the full legal text.
+<details>
+<summary><strong>Architecture (for contributors)</strong></summary>
+
+### Flow
+
+```
+App launch
+  → AppDelegate: status item, prepareCapture(), HotkeyManager, notification setup
+Hotkey / menu → Capture Area
+  → CaptureOverlayWindow (one per screen, high window level)
+  → CaptureOverlayView: selection rect → global screen coords
+  → ScreenCaptureManager.capture(rect:)
+      → performCaptureAction (clipboard / disk)
+      → ThumbnailWindowController (preview on capture screen)
+            → Copy / Save / click → AnnotationWindowController
+```
+
+### Key files
+
+| File | Role |
+|------|------|
+| `AppDelegate.swift` | Status item, hotkey wiring, menu, notification delegate. |
+| `HotkeyManager.swift` | Carbon hotkey registration with configurable key + modifiers. |
+| `SettingsManager.swift` | UserDefaults for all preferences; capture action and save logic. |
+| `SettingsWindowController.swift` | Preferences window with shortcut recorder. |
+| `CaptureOverlayWindow.swift` | Borderless overlays on all screens; crosshair cursor. |
+| `CaptureOverlayView.swift` | Selection drawing, coordinate conversion, Escape to cancel. |
+| `ScreenCaptureManager.swift` | Cached SCDisplay map; ScreenCaptureKit API (macOS 14+ / 13 fallback). |
+| `ThumbnailWindowController.swift` | Floating preview panel with Copy/Save strip. |
+| `AnnotationWindowController.swift` | Drawing canvas with 6 tools, color palette, width slider. |
+
+### Technical notes
+
+- Overlay uses a **flipped coordinate system** (origin top-left); converted to AppKit screen coords before capture.
+- Capture dimensions use the screen's **`backingScaleFactor`** for Retina-accurate bitmaps.
+- A **60 ms delay** after dismissing the overlay prevents capturing the dimmer itself.
+- `showsCursor = false` keeps the pointer out of screenshots.
+- `SCDisplay` objects are **cached at launch** to avoid repeated permission dialogs on macOS 14/15.
+
+</details>
