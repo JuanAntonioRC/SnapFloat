@@ -14,9 +14,8 @@ cd "$REPO_ROOT"
 SCHEME="SnapFloat"
 APP_NAME="SnapFloat"
 BUILD_DIR="$REPO_ROOT/build"
-ARCHIVE_PATH="$BUILD_DIR/$APP_NAME.xcarchive"
-EXPORT_DIR="$BUILD_DIR/export"
-APP_PATH="$EXPORT_DIR/$APP_NAME.app"
+DERIVED="$BUILD_DIR/DerivedData"
+APP_PATH="$BUILD_DIR/$APP_NAME.app"
 
 # Version may be provided as argument; otherwise read from built app later
 ARG_VERSION="${1:-}"
@@ -27,19 +26,25 @@ echo "==> Building $APP_NAME (Release)…"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# Archive
-xcodebuild archive \
+# Build (not archive — more reliable for asset catalogs on CI)
+xcodebuild build \
     -project "$REPO_ROOT/$APP_NAME.xcodeproj" \
     -scheme "$SCHEME" \
     -configuration Release \
-    -archivePath "$ARCHIVE_PATH" \
+    -derivedDataPath "$DERIVED" \
+    -destination "generic/platform=macOS" \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGNING_ALLOWED=YES \
+    MARKETING_VERSION="${ARG_VERSION:-1.0}" \
     | tail -3
 
-# Export the .app from the archive
-mkdir -p "$EXPORT_DIR"
-cp -R "$ARCHIVE_PATH/Products/Applications/$APP_NAME.app" "$APP_PATH"
+# Copy the built .app out of DerivedData
+BUILT_APP=$(find "$DERIVED" -name "$APP_NAME.app" -type d | head -1)
+if [[ -z "$BUILT_APP" ]]; then
+    echo "ERROR: $APP_NAME.app not found in DerivedData" >&2
+    exit 1
+fi
+cp -R "$BUILT_APP" "$APP_PATH"
 
 # Resolve version: argument > built app's Info.plist
 if [[ -n "$ARG_VERSION" ]]; then
