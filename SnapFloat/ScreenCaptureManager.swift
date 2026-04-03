@@ -42,7 +42,7 @@ final class ScreenCaptureManager {
             do {
                 let img = try await doCapture(rect: screenRect, screen: screen)
                 SettingsManager.performCaptureAction(image: img)
-                ThumbnailWindowController.show(image: img, originalSize: screenRect.size)
+                ThumbnailWindowController.show(image: img, originalSize: screenRect.size, on: screen)
             } catch {
                 NSLog("SnapFloat: capture failed – \(error)")
             }

@@ -13,10 +13,10 @@ final class ThumbnailWindowController: NSWindowController {
 
     // MARK: – Public
 
-    static func show(image: NSImage, originalSize: NSSize) {
+    static func show(image: NSImage, originalSize: NSSize, on screen: NSScreen? = nil) {
         DispatchQueue.main.async {
             instance?.forceClose()
-            let controller = ThumbnailWindowController(image: image, originalSize: originalSize)
+            let controller = ThumbnailWindowController(image: image, originalSize: originalSize, screen: screen)
             instance = controller
             controller.showWindow(nil)
         }
@@ -24,7 +24,7 @@ final class ThumbnailWindowController: NSWindowController {
 
     // MARK: – Init
 
-    init(image: NSImage, originalSize: NSSize) {
+    init(image: NSImage, originalSize: NSSize, screen: NSScreen? = nil) {
         capturedImage = image
 
         let maxEdge: CGFloat = 200
@@ -38,7 +38,7 @@ final class ThumbnailWindowController: NSWindowController {
         let panelWidth = max(thumbSize.width, 180)
         let panelSize = NSSize(width: panelWidth, height: thumbSize.height + stripH)
 
-        let screen = NSScreen.main!
+        let screen = screen ?? NSScreen.main!
         let margin: CGFloat = 20
         let origin = NSPoint(
             x: screen.visibleFrame.maxX - panelSize.width - margin,

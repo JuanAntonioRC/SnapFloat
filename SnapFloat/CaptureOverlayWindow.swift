@@ -3,29 +3,34 @@ import AppKit
 /// Full-screen borderless window that sits above everything and hosts the selection view.
 final class CaptureOverlayWindow: NSWindow {
 
-    private static var instance: CaptureOverlayWindow?
+    private static var instances: [CaptureOverlayWindow] = []
 
     // MARK: – Public interface
 
     static func show() {
-        guard instance == nil else { return }
+        guard instances.isEmpty else { return }
 
-        // Use the screen where the cursor currently is
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main!
+        // Create an overlay on every connected screen
+        for screen in NSScreen.screens {
+            let win = CaptureOverlayWindow(screen: screen)
+            instances.append(win)
+            win.orderFront(nil)
+        }
 
-        let win = CaptureOverlayWindow(screen: screen)
-        instance = win
         NSCursor.crosshair.push()
-        win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        win.makeFirstResponder(win.contentView)
+
+        // Make the window under the cursor key so it receives events
+        let mouse = NSEvent.mouseLocation
+        let keyWin = instances.first { $0.frame.contains(mouse) } ?? instances.first!
+        keyWin.makeKeyAndOrderFront(nil)
+        keyWin.makeFirstResponder(keyWin.contentView)
     }
 
     static func dismiss() {
         NSCursor.pop()
-        instance?.orderOut(nil)
-        instance = nil
+        for win in instances { win.orderOut(nil) }
+        instances.removeAll()
     }
 
     // MARK: – Init
@@ -52,6 +57,13 @@ final class CaptureOverlayWindow: NSWindow {
         contentView = overlayView
     }
 
-    // Allow Escape to cancel without being key
+    // Allow any overlay window to become key when clicked
     override var canBecomeKey: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        // When user clicks on this overlay, make it key so it receives drag/up events
+        makeKeyAndOrderFront(nil)
+        makeFirstResponder(contentView)
+        super.mouseDown(with: event)
+    }
 }
