@@ -1,6 +1,10 @@
 # SnapFloat
 [![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/juanantoniorc)
 
+![macOS](https://img.shields.io/badge/macOS-14.0%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-5.0-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 A lightweight macOS menu-bar screenshot tool. Select a region, get a floating preview, annotate, copy or save — all without leaving your workflow.
 
 **[Download the latest release](https://github.com/JuanAntonioRC/SnapFloat/releases/latest)**
