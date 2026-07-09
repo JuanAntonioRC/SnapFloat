@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Same visual language as generate_icon.swift (macOS AppIcon): deep
+     navy-to-indigo gradient square, white viewfinder corner brackets,
+     centre crosshair dot, floating preview card bottom-right. Hand-authored
+     SVG so the Linux build needs no AppKit/CoreGraphics dependency. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#12132e"/>
+      <stop offset="1" stop-color="#2e1f61"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+
+  <!-- Viewfinder corner brackets -->
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.92" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="382,272 272,272 272,382"/>
+    <polyline points="642,272 752,272 752,382"/>
+    <polyline points="382,752 272,752 272,642"/>
+    <polyline points="642,752 752,752 752,642"/>
+  </g>
+
+  <!-- Centre crosshair dot -->
+  <circle cx="512" cy="512" r="18" fill="#ffffff" fill-opacity="0.7"/>
+
+  <!-- Floating preview card -->
+  <g filter="url(#cardShadow)">
+    <rect x="754" y="814" width="210" height="152" rx="18" ry="18"
+          fill="#f2f2ff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.35" stroke-width="3"/>
+  </g>
+  <g fill="#ffffff" fill-opacity="0.22">
+    <rect x="772" y="838" width="174" height="10" rx="3" ry="3"/>
+    <rect x="772" y="857" width="174" height="10" rx="3" ry="3"/>
+    <rect x="772" y="876" width="104" height="10" rx="3" ry="3"/>
+  </g>
+</svg>

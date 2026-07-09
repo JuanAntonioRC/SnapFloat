@@ -1,10 +1,11 @@
 # SnapFloat
 
-A lightweight macOS menu-bar screenshot tool. Select a region, get a floating preview, annotate, copy or save — all without leaving your workflow.
+A lightweight screenshot tool. Select a region, get a floating preview, copy or save — all without leaving your workflow. Native on **macOS** (menu bar) and **Linux** (tray icon, Ubuntu/GNOME first).
 
 [![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/juanantoniorc)
 
 ![macOS](https://img.shields.io/badge/macOS-14.0%2B-blue)
+![Linux](https://img.shields.io/badge/Linux-Ubuntu%2FGNOME-orange)
 ![Swift](https://img.shields.io/badge/Swift-5.0-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -12,11 +13,11 @@ A lightweight macOS menu-bar screenshot tool. Select a region, get a floating pr
 
 **[Download the latest release](https://github.com/JuanAntonioRC/SnapFloat/releases/latest)**
 
-> Requires **macOS 13 (Ventura)** or later.
+> macOS requires **macOS 13 (Ventura)** or later. Linux is built from source (see [below](#linux-ubuntugnome)) — there's no packaged release yet.
 
 ---
 
-## Install
+## Install (macOS)
 
 1. Download **`SnapFloat-x.x.dmg`** from the [Releases page](https://github.com/JuanAntonioRC/SnapFloat/releases/latest).
 2. Open the `.dmg` and drag **SnapFloat** into **Applications**.
@@ -54,7 +55,7 @@ Open from the menu bar or press **⌘,** when the menu is visible.
 
 ---
 
-## Build from source
+## Build from source (macOS)
 
 ```bash
 git clone https://github.com/JuanAntonioRC/SnapFloat.git
@@ -68,6 +69,48 @@ To build a DMG locally:
 
 ```bash
 ./scripts/build-dmg.sh
+```
+
+---
+
+## Linux (Ubuntu/GNOME)
+
+A separate, from-scratch Linux build living alongside the macOS app — same repo, same MIT license, no shared code with the AppKit target (see [Architecture](#architecture-for-contributors)). Built with GTK4 and tested on Ubuntu (GNOME/Wayland); other GTK4 desktops should mostly work too, but Ubuntu/GNOME is the tested target.
+
+**Current feature set (MVP):** region capture, floating preview, copy/save, tray icon with a Capture/Settings/Quit menu, and a Settings window (on-capture action, preview duration, save location, launch at login).
+
+**Not yet implemented on Linux** (present on macOS): global keyboard shortcut, and the annotation editor. Capture is triggered from the tray menu for now.
+
+### Two deliberate differences from macOS
+
+1. **No custom selection overlay.** Wayland doesn't let an app draw its own crosshair-and-dimmer overlay over other windows for security reasons. SnapFloat calls the standard `org.freedesktop.portal.Screenshot` D-Bus portal with `interactive: true`, which shows **GNOME's own** region/window/screen picker (the same one Flameshot and other Linux screenshot tools use) — SnapFloat picks up the resulting image once you finish.
+2. **The floating preview isn't pinned to a corner.** Wayland also doesn't let apps set an absolute on-screen position for their own windows, and GNOME/Mutter doesn't support the `wlr-layer-shell` protocol some other compositors use for this. The preview window appears wherever Mutter's default placement puts it, rather than snapping to the bottom-right corner like on macOS.
+
+### Install
+
+No packaged build yet — build from source:
+
+```bash
+git clone https://github.com/JuanAntonioRC/SnapFloat.git
+cd SnapFloat
+./scripts/setup-linux-deps.sh   # installs build tooling — see note below
+./scripts/build-linux.sh        # swift build -c release
+./scripts/install-linux.sh      # copies into ~/.local/{bin,share}
+```
+
+Then launch **SnapFloat** from your application menu, or run `~/.local/bin/snapfloat-linux` directly.
+
+`setup-linux-deps.sh` installs `build-essential pkg-config libgtk-4-dev libglib2.0-dev` plus a Swift toolchain:
+
+- **With `sudo`**: does a normal `apt-get install` + installs Swift via [swiftly](https://swiftlang.github.io/swiftly/).
+- **Without `sudo`** (e.g. a managed machine): downloads the needed `-dev` packages with `apt-get download` (no root required) and extracts them with `dpkg -x` into a local sysroot at `~/.cache/snapfloat-sysroot`, and installs the Swift toolchain tarball into `~/.local/swift`. Nothing outside your home directory is touched. If you went this route, `source scripts/linux-env.sh` before `swift build`/`build-linux.sh` so the vendored toolchain and headers are found — `build-linux.sh` does this automatically.
+
+### Build manually
+
+```bash
+source scripts/linux-env.sh   # only needed for the no-sudo path above
+swift build -c release
+./.build/release/snapfloat-linux
 ```
 
 ---
@@ -130,5 +173,47 @@ Hotkey / menu → Capture Area
 - A **60 ms delay** after dismissing the overlay prevents capturing the dimmer itself.
 - `showsCursor = false` keeps the pointer out of screenshots.
 - `SCDisplay` objects are **cached at launch** to avoid repeated permission dialogs on macOS 14/15.
+
+</details>
+
+<details>
+<summary><strong>Linux architecture (for contributors)</strong></summary>
+
+### Layout
+
+```
+Package.swift                # SPM manifest — Linux-only, doesn't affect the Xcode/macOS build at all
+Sources/
+  SnapFloatCore/              # Pure Swift (Foundation only) — settings store, capture-action enum,
+                               # filename formatting. A separate copy from the mac SettingsManager,
+                               # not shared — see the note in Sources/SnapFloatCore/CaptureAction.swift.
+  CGtk4Shim/                  # A `module.modulemap` + one-line shim.h (#include <gtk/gtk.h> + <gio/gio.h>).
+                               # No binding generator (no gir2swift) — Swift's Clang importer exposes the
+                               # C API directly; Sources/SnapFloatLinux/GtkInterop.swift wraps the handful
+                               # of raw-pointer/signal patterns used elsewhere.
+  SnapFloatLinux/
+    main.swift                 # GtkApplication setup + run loop
+    AppController.swift        # Coordinator: D-Bus connection, tray, capture flow
+    GtkInterop.swift            # Signal-connect helper, GObject pointer casts, GVariant builders
+    PortalScreenshot.swift      # org.freedesktop.portal.Screenshot over raw GDBus
+    TrayIndicator.swift         # Hand-rolled org.kde.StatusNotifierItem + com.canonical.dbusmenu
+                                 # (see the note at the top of the file for why not libayatana-appindicator3)
+    PreviewWindow.swift         # Floating thumbnail, Copy/Save, auto-dismiss timer
+    SettingsWindow.swift        # Preferences window
+    LinuxNotifications.swift    # GNotification for "Screenshot saved"
+    LinuxAutostart.swift        # ~/.config/autostart/*.desktop toggle
+data/                          # .desktop entry + hicolor SVG icon
+scripts/
+  setup-linux-deps.sh          # apt install, or a no-root fallback (see README above)
+  linux-env.sh                 # sourced by build-linux.sh for the no-root fallback's vendored toolchain
+  build-linux.sh, install-linux.sh
+```
+
+### Technical notes
+
+- **GVariant/GDBusConnection/GtkLabel/GtkComboBoxText/GtkFileDialog import as bare `OpaquePointer`**, not a named typed pointer the way `GtkWindow`/`GtkButton`/`GtkComboBox` do — an inconsistency in how Swift's ClangImporter surfaces this GTK4 version's types. Functions taking one of the "opaque" ones as their first argument import that parameter as `OpaquePointer` too, so the pattern throughout is: use the typed pointer where the compiler accepts it, fall back to `OpaquePointer(...)` where it doesn't. See the comment atop `SettingsWindow.swift`.
+- **GVariant construction avoids GLib's varargs APIs** (`g_variant_new(format, ...)`, `g_variant_lookup(...)`) entirely, in favor of fixed-signature builder calls (`g_variant_builder_new`/`add_value`, `g_variant_new_dict_entry`, ...) — see the helpers in `GtkInterop.swift`. This sidesteps any risk of C-varargs/Swift calling-convention mismatches.
+- **The tray menu is a hand-rolled `com.canonical.dbusmenu` server**, not a real GTK menu widget — the shell (GNOME's AppIndicator extension) renders it from the `GetLayout` D-Bus reply, not from any widget tree on our side.
+- **`swift build`/`swift run` only ever touch the Linux target** — nothing under `SnapFloat/` or `SnapFloat.xcodeproj/` is read or written by the SPM build.
 
 </details>

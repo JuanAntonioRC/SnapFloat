@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SnapFloat
+Comment=Region screenshot tool with a floating preview
+Exec=snapfloat-linux
+Icon=com.snapfloat.SnapFloat
+Terminal=false
+Categories=Utility;Graphics;
+NoDisplay=false
+StartupNotify=false

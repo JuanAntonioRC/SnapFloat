@@ -1,0 +1,4 @@
+module CGtk4Shim [system] {
+    header "shim.h"
+    export *
+}
