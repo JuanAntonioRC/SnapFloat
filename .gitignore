@@ -21,5 +21,8 @@ DerivedData/
 .build/
 .swiftpm/
 
+# Packaging output (build-deb.sh)
+dist/
+
 # CocoaPods (not used, but just in case)
 Pods/

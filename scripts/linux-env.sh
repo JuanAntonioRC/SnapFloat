@@ -42,7 +42,8 @@ if [ -d "$SNAPFLOAT_SYSROOT" ]; then
     # runtime .so), so clang can't find crtbeginS.o / libgcc.a / libgcc_s.so
     # for the final link step. Vendored via libgcc-<N>-dev into the sysroot;
     # LIBRARY_PATH is honored by clang the same way -L is.
-    GCC_LIBDIR="$(find "$SNAPFLOAT_SYSROOT/usr/lib/gcc" -maxdepth 2 -name crtbeginS.o 2>/dev/null | head -1 | xargs -r dirname)"
+    # (depth 3: gcc/<triple>/<version>/crtbeginS.o)
+    GCC_LIBDIR="$(find "$SNAPFLOAT_SYSROOT/usr/lib/gcc" -maxdepth 3 -name crtbeginS.o 2>/dev/null | head -1 | xargs -r dirname)"
     if [ -n "$GCC_LIBDIR" ]; then
         export LIBRARY_PATH="$GCC_LIBDIR:${LIBRARY_PATH:-}"
     fi
