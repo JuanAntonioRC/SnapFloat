@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Same visual language as generate_icon.swift (macOS AppIcon): deep
-     navy-to-indigo gradient square, white viewfinder corner brackets,
-     centre crosshair dot, floating preview card bottom-right. Hand-authored
-     SVG so the Linux build needs no AppKit/CoreGraphics dependency. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Same visual language as generate_icon.swift (macOS AppIcon): deep
+       navy-to-indigo gradient square, white viewfinder corner brackets,
+       centre crosshair dot, floating preview card bottom-right. Hand-authored
+       SVG so the Linux build needs no AppKit/CoreGraphics dependency.
+       NB: the comment must stay *inside* <svg> — gdk-pixbuf only sniffs the
+       first 256 bytes for the svg tag, and an icon it can't sniff renders
+       as a blank tile in GNOME Shell. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="1" x2="0" y2="0">
       <stop offset="0" stop-color="#12132e"/>
