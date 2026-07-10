@@ -1,4 +1,5 @@
 module CGtk4Shim [system] {
     header "shim.h"
+    link "X11"
     export *
 }

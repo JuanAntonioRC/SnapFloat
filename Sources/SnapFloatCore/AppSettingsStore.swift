@@ -16,6 +16,16 @@ public final class AppSettingsStore {
         case saveLocation      = "saveLocation"
         case autoSaveEnabled   = "autoSaveEnabled"
         case captureAction     = "captureAction"
+        case useSystemPicker   = "useSystemPicker"
+    }
+
+    /// Linux only: when true, capture uses the desktop's own screenshot
+    /// dialog (GNOME's region/window/screen picker) instead of SnapFloat's
+    /// instant crop overlay. Default false — the overlay mirrors the macOS
+    /// capture-on-release behavior.
+    public var useSystemPicker: Bool {
+        get { defaults.bool(forKey: Key.useSystemPicker.rawValue) }
+        set { defaults.set(newValue, forKey: Key.useSystemPicker.rawValue) }
     }
 
     public var captureAction: CaptureAction {

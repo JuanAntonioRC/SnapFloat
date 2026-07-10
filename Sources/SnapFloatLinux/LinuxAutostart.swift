@@ -16,7 +16,10 @@ enum LinuxAutostart {
             if newValue {
                 let dir = (autostartPath as NSString).deletingLastPathComponent
                 try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
-                let exePath = ProcessInfo.processInfo.arguments.first ?? "snapfloat-linux"
+                // argv[0] can be a relative path (e.g. `./snapfloat-linux`),
+                // useless in a .desktop Exec line — resolve the real binary.
+                let exePath = (try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe"))
+                    ?? ProcessInfo.processInfo.arguments.first ?? "snapfloat-linux"
                 let contents = """
                 [Desktop Entry]
                 Type=Application

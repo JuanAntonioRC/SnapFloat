@@ -77,14 +77,15 @@ To build a DMG locally:
 
 A separate, from-scratch Linux build living alongside the macOS app — same repo, same MIT license, no shared code with the AppKit target (see [Architecture](#architecture-for-contributors)). Built with GTK4 and tested on Ubuntu (GNOME/Wayland); other GTK4 desktops should mostly work too, but Ubuntu/GNOME is the tested target.
 
-**Current feature set (MVP):** region capture, floating preview, copy/save, tray icon with a Capture/Settings/Quit menu, and a Settings window (on-capture action, preview duration, save location, launch at login).
+**Current feature set:** region capture (auto copy/save per Settings, exactly like the mac version), a global keyboard shortcut (shown next to Capture Area in the tray menu, kept in sync if you rebind it in GNOME Settings), a floating preview sized to the capture's aspect ratio with copy/save, a click-to-annotate editor (pen/line/arrow/rect/oval/text, colors, stroke width, undo, resizable window with aspect-fit canvas), "Screenshot saved" notifications with a **Show in Files** button (the mac version's "Show in Finder"), a tray icon with a Capture/Settings/Quit menu, and a Settings window (shortcut, on-capture action, preview duration, save location, launch at login).
 
-**Not yet implemented on Linux** (present on macOS): global keyboard shortcut, and the annotation editor. Capture is triggered from the tray menu for now.
+Capture quality is already maximal by default — the XDG portal always returns the display's native-resolution screenshot; there's no separate quality setting to toggle (unlike macOS's Retina option, which exists because ScreenCaptureKit lets you choose 1× vs 2× — the portal doesn't expose that knob at all).
 
-### Two deliberate differences from macOS
+### Three deliberate differences from macOS
 
 1. **No custom selection overlay.** Wayland doesn't let an app draw its own crosshair-and-dimmer overlay over other windows for security reasons. SnapFloat calls the standard `org.freedesktop.portal.Screenshot` D-Bus portal with `interactive: true`, which shows **GNOME's own** region/window/screen picker (the same one Flameshot and other Linux screenshot tools use) — SnapFloat picks up the resulting image once you finish.
 2. **The floating preview isn't pinned to a corner.** Wayland also doesn't let apps set an absolute on-screen position for their own windows, and GNOME/Mutter doesn't support the `wlr-layer-shell` protocol some other compositors use for this. The preview window appears wherever Mutter's default placement puts it, rather than snapping to the bottom-right corner like on macOS.
+3. **The shortcut's key combination is assigned in GNOME's own Settings, not SnapFloat's.** SnapFloat registers a named shortcut ("Capture Area") via `org.freedesktop.portal.GlobalShortcuts`; GNOME shows a one-time permission prompt on first launch, and the actual physical keys are picked in **Settings → Keyboard → View and Customize Shortcuts → SnapFloat** — the Settings window has an "Open Keyboard Shortcuts…" button that jumps straight there. This mirrors how the region picker above is also delegated to GNOME's own UI rather than reimplemented.
 
 ### Install
 
@@ -193,14 +194,23 @@ Sources/
                                # of raw-pointer/signal patterns used elsewhere.
   SnapFloatLinux/
     main.swift                 # GtkApplication setup + run loop
-    AppController.swift        # Coordinator: D-Bus connection, tray, capture flow
-    GtkInterop.swift            # Signal-connect helper, GObject pointer casts, GVariant builders
-    PortalScreenshot.swift      # org.freedesktop.portal.Screenshot over raw GDBus
+    AppController.swift        # Coordinator: D-Bus connection, tray, shortcut, capture flow
+    GtkInterop.swift            # Signal-connect helper, GObject pointer casts, GVariant builders,
+                                 # the shared portalRequest() request/response helper
+    PortalScreenshot.swift      # org.freedesktop.portal.Screenshot via portalRequest()
+    GlobalShortcut.swift        # org.freedesktop.portal.GlobalShortcuts via portalRequest();
+                                 # tracks rebinds via the ShortcutsChanged signal
     TrayIndicator.swift         # Hand-rolled org.kde.StatusNotifierItem + com.canonical.dbusmenu
                                  # (see the note at the top of the file for why not libayatana-appindicator3)
-    PreviewWindow.swift         # Floating thumbnail, Copy/Save, auto-dismiss timer
+    CaptureActions.swift        # Shared copy/save primitives (auto on-capture action, manual buttons,
+                                 # annotation editor's Copy/Save all call into this)
+    PreviewWindow.swift         # Floating thumbnail, Copy/Save, click-to-annotate, auto-dismiss timer
+    AnnotationWindow.swift      # GtkDrawingArea + Cairo canvas: pen/line/arrow/rect/oval/text, undo.
+                                 # Shapes live in image coordinates; the resizable window aspect-fits
+                                 # the canvas, so Copy/Save composite 1:1 with no upscaling.
     SettingsWindow.swift        # Preferences window
-    LinuxNotifications.swift    # GNotification for "Screenshot saved"
+    LinuxNotifications.swift    # GNotification for "Screenshot saved" + its "Show in Files" button
+                                 # (org.freedesktop.FileManager1.ShowItems)
     LinuxAutostart.swift        # ~/.config/autostart/*.desktop toggle
 data/                          # .desktop entry + hicolor SVG icon
 scripts/

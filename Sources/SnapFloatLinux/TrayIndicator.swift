@@ -20,6 +20,7 @@ final class TrayIndicator {
 
     private static let sniObjectPath = "/StatusNotifierItem"
     private static let menuObjectPath = "/MenuBar"
+    private static let captureItemId: Int32 = 1
 
     private struct MenuItem {
         let id: Int32
@@ -29,6 +30,10 @@ final class TrayIndicator {
     }
 
     private let menuItems: [MenuItem]
+    /// Trigger description of the global shortcut, shown next to "Capture
+    /// Area" — mirrors the "Capture Area  ⇧⌘2" menu item on macOS.
+    private var captureShortcut: String?
+    private var menuRevision: UInt32 = 1
 
     init(connection: OpaquePointer,
          onCapture: @escaping () -> Void,
@@ -51,6 +56,34 @@ final class TrayIndicator {
         registerStatusNotifierItem()
         registerMenu()
         requestWatcherRegistration()
+    }
+
+    /// Updates the "Capture Area" item's shortcut hint and tells the shell
+    /// to re-fetch the layout via dbusmenu's LayoutUpdated signal.
+    func updateCaptureShortcut(_ description: String?) {
+        // GNOME's trigger_description reads "Press <Shift><Super>s" — the
+        // "Press " prefix is fine in Settings but clunky inside the menu
+        // item's parentheses.
+        var description = description
+        if let d = description, d.hasPrefix("Press ") {
+            description = String(d.dropFirst("Press ".count))
+        }
+        guard description != captureShortcut else { return }
+        captureShortcut = description
+        menuRevision &+= 1
+        var error: UnsafeMutablePointer<GError>?
+        _ = Self.menuObjectPath.withCString { path in
+            "com.canonical.dbusmenu".withCString { iface in
+                "LayoutUpdated".withCString { signal in
+                    g_dbus_connection_emit_signal(
+                        connection, nil, path, iface, signal,
+                        gvTuple([gvUInt32(menuRevision), gvInt32(0)]), &error)
+                }
+            }
+        }
+        if let error {
+            NSLog("SnapFloat: LayoutUpdated emit failed – \(String(cString: error.pointee.message))")
+        }
     }
 
     // MARK: - org.kde.StatusNotifierItem
@@ -156,6 +189,10 @@ final class TrayIndicator {
           <arg type="i" direction="in"/>
           <arg type="b" direction="out"/>
         </method>
+        <signal name="LayoutUpdated">
+          <arg type="u"/>
+          <arg type="i"/>
+        </signal>
       </interface>
     </node>
     """
@@ -226,7 +263,10 @@ final class TrayIndicator {
             var props: [(String, OpaquePointer)] = []
             if item.isSeparator {
                 props.append(("type", gvString("separator")))
-            } else if let label = item.label {
+            } else if var label = item.label {
+                if item.id == Self.captureItemId, let captureShortcut {
+                    label += "  (\(captureShortcut))"
+                }
                 props.append(("label", gvString(label)))
             }
             let itemTuple = gvTuple([gvInt32(item.id), gvDict(props), gvArray(type: "av", [])])
@@ -234,7 +274,7 @@ final class TrayIndicator {
         }
         let rootProps = gvDict([("children-display", gvString("submenu"))])
         let rootTuple = gvTuple([gvInt32(0), rootProps, gvArray(type: "av", children)])
-        return gvTuple([gvUInt32(1), rootTuple])
+        return gvTuple([gvUInt32(menuRevision), rootTuple])
     }
 
     // MARK: - Watcher registration
