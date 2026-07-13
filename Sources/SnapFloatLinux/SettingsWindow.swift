@@ -3,9 +3,8 @@ import SnapFloatCore
 import Foundation
 
 /// Preferences window, mirroring SnapFloat/SettingsWindowController.swift.
-/// Unlike macOS's in-app shortcut recorder, the key combination for the
-/// global shortcut is assigned in GNOME's own Settings app — see
-/// GlobalShortcut.swift for why.
+/// Includes an in-app shortcut recorder ("Change…"), mirroring macOS's own
+/// — see GlobalHotkey.swift for why this doesn't delegate to GNOME Settings.
 ///
 /// Note: GtkLabel/GtkComboBoxText/GtkFileDialog are usable via Swift type
 /// *inference* (e.g. `let l = gtk_label_new(...)`) but the bare type names
@@ -29,9 +28,10 @@ enum SettingsWindow {
     private static var current: UnsafeMutablePointer<GtkWindow>?
     private static var currentContext: Context?
 
-    /// The global shortcut's current key combination, pushed by AppController
-    /// whenever GlobalShortcut learns/changes it. Held here so every code
-    /// path that opens Settings (tray, preview, annotation editor) shows it.
+    /// The global shortcut's current key combination, pushed by
+    /// AppController whenever GlobalHotkey grabs/changes it. Held here so
+    /// every code path that opens Settings (tray, preview, annotation
+    /// editor) shows it.
     private(set) static var shortcutDescription: String?
 
     static func updateShortcutDescription(_ description: String?) {
@@ -42,7 +42,7 @@ enum SettingsWindow {
     }
 
     private static var shortcutLabelText: String {
-        shortcutDescription ?? "Not set — first launch needs a one-time GNOME permission prompt"
+        shortcutDescription ?? "Not set — no X11 display, or already bound by another app"
     }
 
     static func show() {
@@ -77,8 +77,8 @@ enum SettingsWindow {
         gtk_widget_set_hexpand(shortcutLabel, 1)
         gtk_widget_set_halign(shortcutLabel, GTK_ALIGN_START)
         gtk_box_append(shortcutRow, shortcutLabel)
-        let shortcutBtn = gtk_button_new_with_label("Open Keyboard Shortcuts…")!
-        gConnect(shortcutBtn, "clicked", onOpenKeyboardShortcutsClicked)
+        let shortcutBtn = gtk_button_new_with_label("Change…")!
+        gConnect(shortcutBtn, "clicked", data: userData, onChangeShortcutClicked)
         gtk_box_append(shortcutRow, shortcutBtn)
         gtk_box_append(root, gobjectCast(shortcutRow, to: GtkWidget.self))
 
@@ -189,12 +189,93 @@ enum SettingsWindow {
         LinuxAutostart.isEnabled = gtk_check_button_get_active(check) != 0
     }
 
-    private static let onOpenKeyboardShortcutsClicked: GSimpleHandler = { _, _ in
-        var error: UnsafeMutablePointer<GError>?
-        _ = "gnome-control-center keyboard".withCString { g_spawn_command_line_async($0, &error) }
-        if let error {
-            NSLog("SnapFloat: could not open Keyboard Settings – \(String(cString: error.pointee.message))")
+    private static let onChangeShortcutClicked: GSimpleHandler = { _, userData in
+        guard let userData else { return }
+        let context = unretained(userData, as: Context.self)
+        showShortcutRecorder(parent: context.window)
+    }
+
+    // MARK: - Shortcut recorder
+
+    private final class RecorderContext {
+        var window: UnsafeMutablePointer<GtkWindow>!
+        var hintLabel: UnsafeMutablePointer<GtkWidget>!
+    }
+
+    /// A small modal that grabs the next key combination the user presses
+    /// and hands it straight to GlobalHotkey — no separate "OK" step, like
+    /// most hotkey recorders. Requires at least one modifier (Ctrl, Alt,
+    /// Shift or Super); Escape cancels without changing anything.
+    private static func showShortcutRecorder(parent: UnsafeMutablePointer<GtkWindow>) {
+        let context = RecorderContext()
+        let window = gobjectCast(gtk_window_new(), to: GtkWindow.self)
+        gtk_window_set_transient_for(window, parent)
+        gtk_window_set_modal(window, 1)
+        gtk_window_set_title(window, "SnapFloat — New Shortcut")
+        gtk_window_set_resizable(window, 0)
+        context.window = window
+
+        let root = gobjectCast(gtk_box_new(GTK_ORIENTATION_VERTICAL, 8)!, to: GtkBox.self)
+        for setMargin in [gtk_widget_set_margin_start, gtk_widget_set_margin_end,
+                          gtk_widget_set_margin_top, gtk_widget_set_margin_bottom] {
+            setMargin(gobjectCast(root, to: GtkWidget.self), 20)
         }
+
+        let label = gtk_label_new("Press the new key combination…")!
+        gtk_box_append(root, label)
+        let hintLabel = gtk_label_new("Include at least one of Ctrl, Alt, Shift or Super. Esc to cancel.")!
+        gtk_widget_add_css_class(hintLabel, "dim-label")
+        context.hintLabel = hintLabel
+        gtk_box_append(root, hintLabel)
+
+        let userData = retainedPointer(context)
+        gConnect(window, "destroy", data: userData, onRecorderDestroy)
+
+        let keys = gtk_event_controller_key_new()!
+        gConnect(keys, "key-pressed", data: unretainedPointer(context), onRecorderKeyPressed)
+        gtk_widget_add_controller(gobjectCast(window, to: GtkWidget.self), keys)
+
+        gtk_window_set_child(window, gobjectCast(root, to: GtkWidget.self))
+        gtk_window_present(window)
+    }
+
+    private typealias RecorderKeyHandler = @convention(c) (
+        OpaquePointer?, CUnsignedInt, CUnsignedInt, CUnsignedInt, UnsafeMutableRawPointer?
+    ) -> gboolean
+
+    private static let onRecorderKeyPressed: RecorderKeyHandler = { _, keyval, _, state, userData in
+        guard let userData else { return 0 }
+        let context = unretained(userData, as: RecorderContext.self)
+
+        // A modifier pressed alone (Shift_L, Control_L, Super_L, ...) —
+        // keep waiting for the actual combination.
+        if (0xffe1...0xffee).contains(keyval) { return 1 }
+        if keyval == 0xff1b /* GDK_KEY_Escape */ {
+            gtk_window_destroy(context.window)
+            return 1
+        }
+
+        let modifiers = GlobalHotkey.x11Modifiers(fromGdkState: state)
+        guard modifiers != 0 else {
+            "Include at least one of Ctrl, Alt, Shift or Super.".withCString {
+                gtk_label_set_text(OpaquePointer(context.hintLabel), $0)
+            }
+            return 1
+        }
+
+        if GlobalHotkey.shared.rebind(keyval: keyval, modifiers: modifiers) {
+            gtk_window_destroy(context.window)
+        } else {
+            "That combination is already used by another app.".withCString {
+                gtk_label_set_text(OpaquePointer(context.hintLabel), $0)
+            }
+        }
+        return 1
+    }
+
+    private static let onRecorderDestroy: GSimpleHandler = { _, userData in
+        guard let userData else { return }
+        _ = takeRetained(userData, as: RecorderContext.self)
     }
 
     private static let onBrowseClicked: GSimpleHandler = { _, userData in

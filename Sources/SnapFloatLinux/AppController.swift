@@ -8,7 +8,6 @@ final class AppController {
     private let app: UnsafeMutablePointer<GApplication>
     private var connection: OpaquePointer?
     private var tray: TrayIndicator?
-    private var globalShortcut: GlobalShortcut?
     private var grantPromptShownThisRun = false
 
     init(app: UnsafeMutablePointer<GApplication>) {
@@ -32,13 +31,11 @@ final class AppController {
         tray.start()
         self.tray = tray
 
-        let globalShortcut = GlobalShortcut(connection: connection) { [weak self] in self?.captureArea() }
-        globalShortcut.onTriggerDescriptionChanged = { [weak self] description in
+        GlobalHotkey.shared.onDescriptionChanged = { [weak self] description in
             SettingsWindow.updateShortcutDescription(description)
             self?.tray?.updateCaptureShortcut(description)
         }
-        globalShortcut.start()
-        self.globalShortcut = globalShortcut
+        GlobalHotkey.shared.start { [weak self] in self?.captureArea() }
 
         // No visible window on launch — a tray-resident app, like the mac menu-bar app.
         g_application_hold(app)
