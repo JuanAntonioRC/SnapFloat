@@ -21,7 +21,8 @@ apps:
     command: bin/snapfloat-linux
     extensions: [gnome]
     common-id: com.snapfloat.SnapFloat
-    desktop: snap/gui/snapfloat.desktop
+    # No explicit `desktop:` key needed — files under snap/gui/ are copied
+    # into meta/gui/ automatically by snapcraft's own build lifecycle.
     # Same allocator/renderer tuning as the .desktop Exec= line ships for
     # the native .deb build — see data/com.snapfloat.SnapFloat.desktop's
     # own comment for why. MALLOC_ARENA_MAX/MALLOC_MMAP_THRESHOLD_ cut
