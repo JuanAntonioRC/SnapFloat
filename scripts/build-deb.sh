@@ -58,7 +58,7 @@ mkdir -p \
     "$PKG_DIR/usr/share/doc/$PKG_NAME"
 
 install -m 755 "$BIN_PATH" "$PKG_DIR/usr/bin/snapfloat-linux"
-# Exec=snapfloat-linux resolves via PATH once installed under /usr/bin.
+# Exec=env ... snapfloat-linux resolves via PATH once installed under /usr/bin.
 install -m 644 data/com.snapfloat.SnapFloat.desktop "$PKG_DIR/usr/share/applications/"
 install -m 644 data/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg \
     "$PKG_DIR/usr/share/icons/hicolor/scalable/apps/"

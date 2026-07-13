@@ -2,7 +2,13 @@
 Type=Application
 Name=SnapFloat
 Comment=Region screenshot tool with a floating preview
-Exec=snapfloat-linux
+# MALLOC_ARENA_MAX=2 / MALLOC_MMAP_THRESHOLD_=131072: glibc's per-thread
+# malloc arenas otherwise multiply the resting memory footprint several
+# times over (each GLib/GTK worker thread gets its own arena). GSK_RENDERER=
+# cairo: every window this app draws (overlay, preview, annotator) already
+# paints with Cairo directly, so GTK's default GL/Vulkan scene-graph renderer
+# just adds idle GPU-context memory for nothing.
+Exec=env MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 GSK_RENDERER=cairo snapfloat-linux
 Icon=com.snapfloat.SnapFloat
 Terminal=false
 Categories=Utility;Graphics;

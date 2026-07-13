@@ -20,11 +20,13 @@ enum LinuxAutostart {
                 // useless in a .desktop Exec line — resolve the real binary.
                 let exePath = (try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe"))
                     ?? ProcessInfo.processInfo.arguments.first ?? "snapfloat-linux"
+                // Same allocator/renderer tuning as the main .desktop entry —
+                // see its comment for why.
                 let contents = """
                 [Desktop Entry]
                 Type=Application
                 Name=SnapFloat
-                Exec=\(exePath)
+                Exec=env MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 GSK_RENDERER=cairo \(exePath)
                 Icon=com.snapfloat.SnapFloat
                 X-GNOME-Autostart-enabled=true
                 NoDisplay=true

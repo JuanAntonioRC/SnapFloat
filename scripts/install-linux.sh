@@ -28,8 +28,10 @@ cp "$BIN_PATH" "$BIN_DIR/snapfloat-linux"
 cp "$REPO_ROOT/data/com.snapfloat.SnapFloat.desktop" "$APPS_DIR/"
 cp "$REPO_ROOT/data/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg" "$ICON_DIR/"
 
-# Point the installed .desktop entry at the installed binary's absolute path.
-sed -i "s|^Exec=.*|Exec=$BIN_DIR/snapfloat-linux|" "$APPS_DIR/com.snapfloat.SnapFloat.desktop"
+# Point the installed .desktop entry at the installed binary's absolute path,
+# keeping the env wrapper (allocator tuning + GSK_RENDERER, see the .desktop
+# file's own comment) that ships in the Exec= line.
+sed -i "s|^Exec=.*|Exec=env MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 GSK_RENDERER=cairo $BIN_DIR/snapfloat-linux|" "$APPS_DIR/com.snapfloat.SnapFloat.desktop"
 
 command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS_DIR" || true
 command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
