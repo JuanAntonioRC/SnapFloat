@@ -45,6 +45,20 @@ apps:
       # LinuxAutostart.swift and AppSettingsStore's UserDefaults-backed
       # config file both do plain file I/O under $HOME).
       - home
+    slots:
+      # main.swift owns the well-known bus name "com.snapfloat.SnapFloat"
+      # (GApplication's single-instance/activation machinery, and the
+      # org.freedesktop.Application/org.gtk.Actions interfaces
+      # LinuxNotifications' "show-in-files" action rides on) — AppArmor
+      # blocks RequestName for arbitrary names by default under strict
+      # confinement, so that identity has to be explicitly declared here.
+      - dbus-snapfloat
+
+slots:
+  dbus-snapfloat:
+    interface: dbus
+    bus: session
+    name: com.snapfloat.SnapFloat
 
 parts:
   snapfloat:
