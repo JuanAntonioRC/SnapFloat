@@ -364,5 +364,6 @@ enum CaptureOverlay {
         let context = takeRetained(userData, as: Context.self)
         context.finished = true
         cairo_surface_destroy(context.surface)
+        MemoryTrim.scheduleTrim()
     }
 }

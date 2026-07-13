@@ -239,6 +239,7 @@ enum PreviewWindow {
     private static let onWindowDestroy: GSimpleHandler = { _, userData in
         guard let userData else { return }
         _ = takeRetained(userData, as: Context.self)
+        MemoryTrim.scheduleTrim()
     }
 
     private static let onCopyClicked: GSimpleHandler = { _, userData in

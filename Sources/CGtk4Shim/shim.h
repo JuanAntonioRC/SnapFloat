@@ -13,6 +13,12 @@
 #include <gdk/x11/gdkx.h>
 #include <X11/Xlib.h>
 
+// GNU extension (glibc's <malloc.h>, not declared by <stdlib.h>) exposing
+// malloc_trim(3) — used to hand freed heap pages (the capture overlay's
+// full-screen scratch buffers, in particular) back to the kernel once a
+// window closes. glibc's malloc arenas keep them mapped for reuse otherwise.
+#include <malloc.h>
+
 // Note: GLib/GIO types like GVariant/GDBusConnection import into Swift as
 // bare `OpaquePointer` rather than `UnsafeMutablePointer<GVariant>` the way
 // GTK's own types (GtkWidget, GtkApplication, ...) do — Swift's ClangImporter

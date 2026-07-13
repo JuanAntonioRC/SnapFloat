@@ -545,5 +545,6 @@ enum AnnotationWindow {
         guard let userData else { return }
         let context = takeRetained(userData, as: Context.self)
         cairo_surface_destroy(context.baseSurface)
+        MemoryTrim.scheduleTrim()
     }
 }
