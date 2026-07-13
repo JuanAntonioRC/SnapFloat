@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SnapFloat
+Comment=Region screenshot tool with a floating preview
+Exec=snapfloat
+Icon=${SNAP}/share/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg
+Terminal=false
+Categories=Utility;Graphics;
+NoDisplay=false
+StartupNotify=false

@@ -1,0 +1,102 @@
+name: snapfloat
+base: core24
+version: '1.0'
+summary: Region screenshot tool with a floating preview
+description: |
+  SnapFloat captures a screen region and shows a small floating thumbnail
+  in the corner: click it to annotate, or use the strip to copy or save.
+  GTK4 port of the macOS menu-bar app; screen capture and the global
+  shortcut go through the XDG desktop portals — this is why SnapFloat
+  needs to be sandboxed at all: org.freedesktop.portal.GlobalShortcuts
+  refuses non-sandboxed callers outright ("An app id is required"), and
+  a raw X11 key grab can't reach a Super-key combination under GNOME's
+  Wayland compositor either way (Mutter intercepts Super before an
+  XWayland client's grab ever sees it).
+grade: stable
+confinement: strict
+license: MIT
+
+apps:
+  snapfloat:
+    command: bin/snapfloat-linux
+    extensions: [gnome]
+    common-id: com.snapfloat.SnapFloat
+    desktop: snap/gui/snapfloat.desktop
+    # Same allocator/renderer tuning as the .desktop Exec= line ships for
+    # the native .deb build — see data/com.snapfloat.SnapFloat.desktop's
+    # own comment for why. MALLOC_ARENA_MAX/MALLOC_MMAP_THRESHOLD_ cut
+    # resting memory; GSK_RENDERER=cairo is safe because every window
+    # (overlay, preview, annotator) already paints with Cairo directly.
+    environment:
+      MALLOC_ARENA_MAX: "2"
+      MALLOC_MMAP_THRESHOLD_: "131072"
+      GSK_RENDERER: cairo
+    # The `gnome` extension already adds: desktop, desktop-legacy,
+    # gsettings, opengl, wayland, x11 (verified via `snapcraft
+    # expand-extensions`) — only what's genuinely missing goes here.
+    plugs:
+      # StatusNotifierItem/AppIndicator tray icon (TrayIndicator.swift)
+      # and other legacy desktop D-Bus bits — not part of the gnome
+      # extension's own plug set.
+      - unity7
+      # Arbitrary save-folder access (SettingsWindow's "Choose…" folder
+      # picker already goes through GTK4's portal-aware GtkFileDialog, but
+      # LinuxAutostart.swift and AppSettingsStore's UserDefaults-backed
+      # config file both do plain file I/O under $HOME).
+      - home
+
+parts:
+  snapfloat:
+    plugin: nil
+    source: .
+    build-packages:
+      - curl
+      - clang
+      - libgtk-4-dev
+      - libx11-dev
+      - pkg-config
+      - ca-certificates
+      # Swift's own toolchain binaries (swift-frontend etc.) need ncurses
+      # at build time; not present in the base LXD/core24 build image.
+      - libncurses6
+    # GTK4 itself comes from the gnome extension's gnome-46-2404 content
+    # snap at runtime (same Ubuntu 24.04/GNOME 46 archive lineage as
+    # libgtk-4-dev above, so the SONAMEs line up) — no need to stage it
+    # separately. libx11-6 is or our own direct Xlib use (GlobalHotkey's
+    # XGrabKey, X11Interop's EWMH tricks), which the extension doesn't
+    # provide on its own.
+    stage-packages:
+      - libx11-6
+    # No official snapcraft plugin for Swift — this vendors the same
+    # Ubuntu 24.04 Swift toolchain tarball scripts/setup-linux-deps.sh
+    # uses for the no-sudo dev path, but only for the *build* (into
+    # CRAFT_PART_BUILD, never staged into the snap itself).
+    # --static-swift-stdlib mirrors build-deb.sh's approach — bakes the
+    # Swift runtime into the binary so the snap doesn't need to stage
+    # libswiftCore.so/Foundation/ICU separately.
+    #
+    # NOTE: this Swift version is pinned as of 2026-07; bump it if
+    # download.swift.org retires this release. Check with:
+    #   curl -s https://www.swift.org/api/v1/install/releases.json \
+    #     | python3 -c "import json,sys; d=json.load(sys.stdin); \
+    #       print([r['name'] for r in d if any(p['name']=='Ubuntu 24.04' for p in r['platforms'])][-1])"
+    override-build: |
+      set -eu
+      SWIFT_VERSION="6.3.3"
+      SWIFT_DIR="$CRAFT_PART_BUILD/swift-toolchain"
+      if [ ! -x "$SWIFT_DIR/usr/bin/swift" ]; then
+        mkdir -p "$SWIFT_DIR"
+        curl -L -o /tmp/swift-toolchain.tar.gz \
+          "https://download.swift.org/swift-${SWIFT_VERSION}-release/ubuntu2404/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-ubuntu24.04.tar.gz"
+        tar -xzf /tmp/swift-toolchain.tar.gz -C "$SWIFT_DIR" --strip-components=1
+        rm -f /tmp/swift-toolchain.tar.gz
+      fi
+      export PATH="$SWIFT_DIR/usr/bin:$PATH"
+
+      cd "$CRAFT_PART_SRC"
+      swift build -c release --static-swift-stdlib -Xswiftc -Osize
+
+      install -D "$CRAFT_PART_SRC/.build/release/snapfloat-linux" \
+        "$CRAFT_PART_INSTALL/bin/snapfloat-linux"
+      install -D "$CRAFT_PART_SRC/data/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg" \
+        "$CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg"

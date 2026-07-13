@@ -16,17 +16,11 @@ enum LinuxAutostart {
             if newValue {
                 let dir = (autostartPath as NSString).deletingLastPathComponent
                 try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
-                // argv[0] can be a relative path (e.g. `./snapfloat-linux`),
-                // useless in a .desktop Exec line — resolve the real binary.
-                let exePath = (try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe"))
-                    ?? ProcessInfo.processInfo.arguments.first ?? "snapfloat-linux"
-                // Same allocator/renderer tuning as the main .desktop entry —
-                // see its comment for why.
                 let contents = """
                 [Desktop Entry]
                 Type=Application
                 Name=SnapFloat
-                Exec=env MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 GSK_RENDERER=cairo \(exePath)
+                \(execLine)
                 Icon=com.snapfloat.SnapFloat
                 X-GNOME-Autostart-enabled=true
                 NoDisplay=true
@@ -36,5 +30,25 @@ enum LinuxAutostart {
                 try? fm.removeItem(atPath: autostartPath)
             }
         }
+    }
+
+    private static var execLine: String {
+        if let snapName = ProcessInfo.processInfo.environment["SNAP_NAME"] {
+            // Under snap confinement, /proc/self/exe resolves to a
+            // revision-specific path inside the squashfs mount (e.g.
+            // /snap/snapfloat/x1/...) that breaks on the next refresh —
+            // /snap/bin/<name> is the stable entry point snapd keeps
+            // pointing at the current revision. The allocator/renderer env
+            // vars are already applied via snapcraft.yaml's `environment:`
+            // for this launch path, so no env wrapper is needed here.
+            return "Exec=/snap/bin/\(snapName)"
+        }
+        // argv[0] can be a relative path (e.g. `./snapfloat-linux`), useless
+        // in a .desktop Exec line — resolve the real binary. Same
+        // allocator/renderer tuning as the main .desktop entry — see its
+        // comment for why.
+        let exePath = (try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe"))
+            ?? ProcessInfo.processInfo.arguments.first ?? "snapfloat-linux"
+        return "Exec=env MALLOC_ARENA_MAX=2 MALLOC_MMAP_THRESHOLD_=131072 GSK_RENDERER=cairo \(exePath)"
     }
 }
