@@ -16,10 +16,8 @@ enum PreviewWindow {
 
     private final class Context {
         let imagePath: String
-        let app: UnsafeMutablePointer<GtkApplication>
-        init(imagePath: String, app: UnsafeMutablePointer<GtkApplication>) {
+        init(imagePath: String) {
             self.imagePath = imagePath
-            self.app = app
         }
     }
 
@@ -56,8 +54,8 @@ enum PreviewWindow {
     /// - Parameter point: where the selection ended, in root coordinates —
     ///   used to pick the monitor whose corner gets the preview (macOS shows
     ///   it on the capture screen). nil = primary monitor.
-    static func show(imagePath: String, app: UnsafeMutablePointer<GtkApplication>,
-                     near point: (x: Double, y: Double)? = nil) {
+    static func show(imagePath: String, near point: (x: Double, y: Double)? = nil) {
+        GtkLazyInit.ensureGtkInitialized()
         dismiss()
 
         let window = gobjectCast(gtk_window_new(), to: GtkWindow.self)
@@ -114,7 +112,7 @@ enum PreviewWindow {
         gtk_widget_set_margin_bottom(gobjectCast(strip, to: GtkWidget.self), 8)
         gtk_widget_set_margin_top(gobjectCast(strip, to: GtkWidget.self), 4)
 
-        let context = Context(imagePath: imagePath, app: app)
+        let context = Context(imagePath: imagePath)
         let userData = retainedPointer(context)
 
         // Click the thumbnail itself to open the annotation editor, mirroring
@@ -257,7 +255,7 @@ enum PreviewWindow {
             // Settings and keep the preview around (auto-dismiss cancelled)
             // so Save can be retried after picking a folder.
             cancelAutoDismiss()
-            SettingsWindow.show(app: context.app)
+            SettingsWindow.show()
             return
         }
         CaptureActions.saveToDisk(imagePath: context.imagePath)
@@ -270,8 +268,7 @@ enum PreviewWindow {
         guard let userData else { return }
         let context = unretained(userData, as: Context.self)
         let imagePath = context.imagePath
-        let app = context.app
         dismiss()
-        AnnotationWindow.show(imagePath: imagePath, app: app)
+        AnnotationWindow.show(imagePath: imagePath)
     }
 }

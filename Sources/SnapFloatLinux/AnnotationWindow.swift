@@ -76,8 +76,6 @@ enum AnnotationWindow {
 
         var toggleButtons: [UnsafeMutablePointer<GtkToggleButton>] = []
         var colorButtons: [UnsafeMutablePointer<GtkToggleButton>] = []
-
-        var app: UnsafeMutablePointer<GtkApplication>!
     }
 
     private static var current: Context?
@@ -85,7 +83,8 @@ enum AnnotationWindow {
 
     // MARK: - Public
 
-    static func show(imagePath: String, app: UnsafeMutablePointer<GtkApplication>) {
+    static func show(imagePath: String) {
+        GtkLazyInit.ensureGtkInitialized()
         if let current { gtk_window_destroy(current.window) }
         ensureCssLoaded()
 
@@ -102,7 +101,6 @@ enum AnnotationWindow {
         context.baseSurface = surface
         context.imageWidth = imgW
         context.imageHeight = imgH
-        context.app = app
 
         // Initial window size: image at 1:1 up to 1000×700. Just a starting
         // point — the canvas re-fits on every draw as the window resizes.
@@ -509,7 +507,7 @@ enum AnnotationWindow {
         commitPendingText(context)
 
         guard let dir = AppSettingsStore.shared.saveDirectoryPath else {
-            SettingsWindow.show(app: context.app)
+            SettingsWindow.show()
             return
         }
         guard let composite = composite(context) else { return }

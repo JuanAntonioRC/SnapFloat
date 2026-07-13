@@ -45,14 +45,15 @@ enum SettingsWindow {
         shortcutDescription ?? "Not set — first launch needs a one-time GNOME permission prompt"
     }
 
-    static func show(app: UnsafeMutablePointer<GtkApplication>) {
+    static func show() {
+        GtkLazyInit.ensureGtkInitialized()
         if let current {
             gtk_window_present(current)
             return
         }
 
         let settings = AppSettingsStore.shared
-        let window = gobjectCast(gtk_application_window_new(app)!, to: GtkWindow.self)
+        let window = gobjectCast(gtk_window_new(), to: GtkWindow.self)
         gtk_window_set_title(window, "SnapFloat — Settings")
         gtk_window_set_default_size(window, 420, 360)
 

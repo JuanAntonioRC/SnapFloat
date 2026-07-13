@@ -51,6 +51,7 @@ enum CaptureOverlay {
     /// deleted as soon as it's loaded.
     static func show(fullScreenImagePath: String,
                      onDone: @escaping (String?, (x: Double, y: Double)?) -> Void) {
+        GtkLazyInit.ensureGtkInitialized()
         if let current { gtk_window_destroy(current.window) }
 
         let surface = fullScreenImagePath.withCString { cairo_image_surface_create_from_png($0) }

@@ -5,13 +5,13 @@ import Foundation
 /// Top-level coordinator: owns the shared D-Bus connection, the tray icon,
 /// and wires "Capture Area" through to the portal + floating preview.
 final class AppController {
-    private let app: UnsafeMutablePointer<GtkApplication>
+    private let app: UnsafeMutablePointer<GApplication>
     private var connection: OpaquePointer?
     private var tray: TrayIndicator?
     private var globalShortcut: GlobalShortcut?
     private var grantPromptShownThisRun = false
 
-    init(app: UnsafeMutablePointer<GtkApplication>) {
+    init(app: UnsafeMutablePointer<GApplication>) {
         self.app = app
     }
 
@@ -41,8 +41,7 @@ final class AppController {
         self.globalShortcut = globalShortcut
 
         // No visible window on launch — a tray-resident app, like the mac menu-bar app.
-        let gApp = gobjectCast(app, to: GApplication.self)
-        g_application_hold(gApp)
+        g_application_hold(app)
     }
 
     private func captureArea() {
@@ -68,7 +67,7 @@ final class AppController {
                 // (or if declined) fall back to the desktop's own picker.
                 if !self.grantPromptShownThisRun {
                     self.grantPromptShownThisRun = true
-                    GrantAccessWindow.show(connection: connection, app: self.app) { [weak self] granted in
+                    GrantAccessWindow.show(connection: connection) { [weak self] granted in
                         guard let self else { return }
                         if granted {
                             self.captureArea()
@@ -97,6 +96,13 @@ final class AppController {
     }
 
     private func handleCapturedImage(at url: URL, near point: (x: Double, y: Double)?) {
+        // performConfiguredAction's copy-to-clipboard action touches the GDK
+        // clipboard/display directly, and — on the system-picker path (no
+        // CaptureOverlay of ours involved) — may run before any window of
+        // ours has opened GTK yet. PreviewWindow.show below would init it
+        // anyway, but only after the copy already needed it.
+        GtkLazyInit.ensureGtkInitialized()
+
         // The portal drops its file in ~/Pictures/Screenshots and transfers
         // ownership to us — move it into the temp dir so captures don't
         // pile up there. (CaptureOverlay's crops are already in temp; the
@@ -109,15 +115,14 @@ final class AppController {
         }
         NSLog("SnapFloat: captured \(imagePath)")
         CaptureActions.performConfiguredAction(imagePath: imagePath)
-        PreviewWindow.show(imagePath: imagePath, app: app, near: point)
+        PreviewWindow.show(imagePath: imagePath, near: point)
     }
 
     private func openSettings() {
-        SettingsWindow.show(app: app)
+        SettingsWindow.show()
     }
 
     private func quit() {
-        let gApp = gobjectCast(app, to: GApplication.self)
-        g_application_quit(gApp)
+        g_application_quit(app)
     }
 }

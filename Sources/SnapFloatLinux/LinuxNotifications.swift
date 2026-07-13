@@ -13,9 +13,8 @@ enum LinuxNotifications {
         UnsafeMutableRawPointer?  // user_data
     ) -> Void
 
-    static func configure(app: UnsafeMutablePointer<GtkApplication>) {
-        let gApp = gobjectCast(app, to: GApplication.self)
-        self.app = gApp
+    static func configure(app: UnsafeMutablePointer<GApplication>) {
+        self.app = app
 
         // App-scoped action the notification button activates, carrying the
         // saved file's path as its string parameter.
@@ -29,7 +28,7 @@ enum LinuxNotifications {
                 nil, nil, GConnectFlags(rawValue: 0)
             )
         }
-        g_action_map_add_action(OpaquePointer(gApp), action)
+        g_action_map_add_action(OpaquePointer(app), action)
     }
 
     static func postSaveNotification(path: String) {

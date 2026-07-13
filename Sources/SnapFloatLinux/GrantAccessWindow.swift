@@ -23,15 +23,15 @@ enum GrantAccessWindow {
     private static var current: Context?
 
     static func show(connection: OpaquePointer,
-                     app: UnsafeMutablePointer<GtkApplication>,
                      onFinished: @escaping (Bool) -> Void) {
+        GtkLazyInit.ensureGtkInitialized()
         if let current { gtk_window_destroy(current.window) }
 
         let context = Context()
         context.connection = connection
         context.onFinished = onFinished
 
-        let window = gobjectCast(gtk_application_window_new(app)!, to: GtkWindow.self)
+        let window = gobjectCast(gtk_window_new(), to: GtkWindow.self)
         gtk_window_set_title(window, "SnapFloat — Screenshot access")
         gtk_window_set_resizable(window, 0)
         context.window = window
