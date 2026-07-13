@@ -32,6 +32,15 @@ apps:
       MALLOC_ARENA_MAX: "2"
       MALLOC_MMAP_THRESHOLD_: "131072"
       GSK_RENDERER: cairo
+      # The gnome extension's launch wrapper (or the session itself)
+      # exports GDK_BACKEND=wayland, which — per GDK's own precedence
+      # rules — overrides main.swift's gdk_set_allowed_backends("x11,*")
+      # call entirely. Without forcing this back to x11, the app falls
+      # back to GDK's Wayland backend, which breaks the floating
+      # preview's corner-pinning (no wlr-layer-shell / absolute
+      # positioning under Mutter — see X11Interop.swift) and it lands at
+      # GNOME's default centered placement instead.
+      GDK_BACKEND: x11
     # The `gnome` extension already adds: desktop, desktop-legacy,
     # gsettings, opengl, wayland, x11 (verified via `snapcraft
     # expand-extensions`) — only what's genuinely missing goes here.
