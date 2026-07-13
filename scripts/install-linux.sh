@@ -25,6 +25,7 @@ ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 mkdir -p "$BIN_DIR" "$APPS_DIR" "$ICON_DIR"
 
 cp "$BIN_PATH" "$BIN_DIR/snapfloat-linux"
+strip --strip-unneeded "$BIN_DIR/snapfloat-linux" 2>/dev/null || true
 cp "$REPO_ROOT/data/com.snapfloat.SnapFloat.desktop" "$APPS_DIR/"
 cp "$REPO_ROOT/data/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg" "$ICON_DIR/"
 

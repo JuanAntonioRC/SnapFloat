@@ -19,7 +19,9 @@ if [ -f scripts/linux-env.sh ]; then
 fi
 
 echo "==> Building SnapFloat (release)…"
-swift build -c release
+# -Osize: optimize for binary size over speed — this is a UI-driven tray app
+# with no hot loops, so the speed/size tradeoff costs nothing noticeable.
+swift build -c release -Xswiftc -Osize
 
 BIN_PATH="$REPO_ROOT/.build/release/snapfloat-linux"
 echo ""
