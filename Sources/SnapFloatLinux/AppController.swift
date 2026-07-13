@@ -35,7 +35,7 @@ final class AppController {
             SettingsWindow.updateShortcutDescription(description)
             self?.tray?.updateCaptureShortcut(description)
         }
-        GlobalHotkey.shared.start { [weak self] in self?.captureArea() }
+        GlobalHotkey.shared.start(connection: connection) { [weak self] in self?.captureArea() }
 
         // No visible window on launch — a tray-resident app, like the mac menu-bar app.
         g_application_hold(app)

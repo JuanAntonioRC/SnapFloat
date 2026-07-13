@@ -200,6 +200,7 @@ enum SettingsWindow {
     private final class RecorderContext {
         var window: UnsafeMutablePointer<GtkWindow>!
         var hintLabel: UnsafeMutablePointer<GtkWidget>!
+        var cancelled = false
     }
 
     /// A small modal that grabs the next key combination the user presses
@@ -263,11 +264,23 @@ enum SettingsWindow {
             return 1
         }
 
-        if GlobalHotkey.shared.rebind(keyval: keyval, modifiers: modifiers) {
-            gtk_window_destroy(context.window)
-        } else {
-            "That combination is already used by another app.".withCString {
+        // Super-key combinations are bound via a system portal call under
+        // the hood (see GlobalHotkey.swift) — that round trip isn't
+        // instant, and may involve a one-time GNOME confirmation dialog.
+        if modifiers & 64 != 0 {
+            "Confirming with GNOME…".withCString {
                 gtk_label_set_text(OpaquePointer(context.hintLabel), $0)
+            }
+        }
+
+        GlobalHotkey.shared.rebind(keyval: keyval, modifiers: modifiers) { [weak context] success in
+            guard let context, !context.cancelled else { return }
+            if success {
+                gtk_window_destroy(context.window)
+            } else {
+                "That combination could not be registered (declined, or already used elsewhere).".withCString {
+                    gtk_label_set_text(OpaquePointer(context.hintLabel), $0)
+                }
             }
         }
         return 1
@@ -275,7 +288,8 @@ enum SettingsWindow {
 
     private static let onRecorderDestroy: GSimpleHandler = { _, userData in
         guard let userData else { return }
-        _ = takeRetained(userData, as: RecorderContext.self)
+        let context = takeRetained(userData, as: RecorderContext.self)
+        context.cancelled = true
     }
 
     private static let onBrowseClicked: GSimpleHandler = { _, userData in
