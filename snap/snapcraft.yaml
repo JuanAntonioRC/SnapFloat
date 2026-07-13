@@ -32,6 +32,19 @@ apps:
       MALLOC_ARENA_MAX: "2"
       MALLOC_MMAP_THRESHOLD_: "131072"
       GSK_RENDERER: cairo
+      # GSK_RENDERER=cairo only picks Cairo for the *scene-graph*
+      # renderer — GDK itself still separately probes/creates a GL
+      # context for things like GdkTexture uploads (gdk_texture_new_
+      # from_filename, used by CaptureActions.copyToClipboard on every
+      # capture). Under confinement this falls back to Mesa's llvmpipe
+      # (software rendering via LLVM's JIT) rather than real hardware
+      # DRI, verified via /proc/<pid>/maps showing libLLVM.so and a
+      # mesa_shader_cache_db mapped in — a one-time but huge (~80-100MB)
+      # jump that persists for the process's lifetime, unlike the
+      # trimmable per-capture screenshot buffers. gl-disable stops GDK
+      # from ever creating a GL/EGL context at all, which this app never
+      # needs (every window paints with Cairo directly already).
+      GDK_DEBUG: gl-disable
     # The gnome extension's own desktop-launch command-chain entry
     # unconditionally does `export GDK_BACKEND=wayland` when a Wayland
     # session is detected, which — per GDK's env-var precedence — beats
