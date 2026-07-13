@@ -32,15 +32,17 @@ apps:
       MALLOC_ARENA_MAX: "2"
       MALLOC_MMAP_THRESHOLD_: "131072"
       GSK_RENDERER: cairo
-      # The gnome extension's launch wrapper (or the session itself)
-      # exports GDK_BACKEND=wayland, which — per GDK's own precedence
-      # rules — overrides main.swift's gdk_set_allowed_backends("x11,*")
-      # call entirely. Without forcing this back to x11, the app falls
-      # back to GDK's Wayland backend, which breaks the floating
-      # preview's corner-pinning (no wlr-layer-shell / absolute
-      # positioning under Mutter — see X11Interop.swift) and it lands at
-      # GNOME's default centered placement instead.
-      GDK_BACKEND: x11
+    # The gnome extension's own desktop-launch command-chain entry
+    # unconditionally does `export GDK_BACKEND=wayland` when a Wayland
+    # session is detected, which — per GDK's env-var precedence — beats
+    # main.swift's gdk_set_allowed_backends("x11,*") call outright and
+    # cannot be fixed via the `environment:` key above (that's set before
+    # desktop-launch runs, not after). bin/gdk-x11-wrapper is appended
+    # after the extension's own command-chain entries (snapcraft merges
+    # the two) and resets it back to x11 right before the real binary
+    # execs — see snap/local/gdk-x11-wrapper's own comment.
+    command-chain:
+      - bin/gdk-x11-wrapper
     # The `gnome` extension already adds: desktop, desktop-legacy,
     # gsettings, opengl, wayland, x11 (verified via `snapcraft
     # expand-extensions`) — only what's genuinely missing goes here.
@@ -124,3 +126,5 @@ parts:
         "$CRAFT_PART_INSTALL/bin/snapfloat-linux"
       install -D "$CRAFT_PART_SRC/data/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg" \
         "$CRAFT_PART_INSTALL/share/icons/hicolor/scalable/apps/com.snapfloat.SnapFloat.svg"
+      install -D -m 755 "$CRAFT_PART_SRC/snap/local/gdk-x11-wrapper" \
+        "$CRAFT_PART_INSTALL/bin/gdk-x11-wrapper"

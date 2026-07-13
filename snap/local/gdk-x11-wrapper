@@ -1,0 +1,12 @@
+#!/bin/sh
+# The gnome extension's own desktop-launch command-chain entry (which runs
+# before this one) unconditionally does `export GDK_BACKEND=wayland` when a
+# Wayland session is detected — overriding whatever snapcraft.yaml's
+# `environment:` sets. GDK_BACKEND is checked after main.swift's
+# gdk_set_allowed_backends("x11,*") call and takes priority over it, so
+# without resetting it back here (the last command-chain entry, right
+# before the real binary execs), the floating preview's X11-only
+# corner-pinning (X11Interop.swift) silently breaks and windows land at
+# GNOME's default centered placement instead.
+export GDK_BACKEND=x11
+exec "$@"
