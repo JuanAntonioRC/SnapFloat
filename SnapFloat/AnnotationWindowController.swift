@@ -271,18 +271,43 @@ final class DrawingCanvasView: NSView {
         needsDisplay = true
     }
 
-    /// Returns the image + annotations composited at original image resolution.
+    /// Returns the image + annotations composited at the original *pixel*
+    /// resolution. `lockFocus` would re-rasterize at 1× and throw away the
+    /// Retina pixels, so we render into an explicit bitmap rep instead.
     func compositeImage() -> NSImage {
         commitTextField()
-        let out = NSImage(size: image.size)
-        out.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: image.size))
-        let sx = image.size.width  / bounds.width
-        let sy = image.size.height / bounds.height
+
+        let srcRep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first
+        let pxW = srcRep?.pixelsWide ?? max(Int(image.size.width), 1)
+        let pxH = srcRep?.pixelsHigh ?? max(Int(image.size.height), 1)
+
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                         pixelsWide: pxW, pixelsHigh: pxH,
+                                         bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB,
+                                         bytesPerRow: 0, bitsPerPixel: 0),
+              let ctx = NSGraphicsContext(bitmapImageRep: rep) else {
+            return image
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = ctx
+        ctx.imageInterpolation = .high
+        // Draw in pixel coordinates: the source fills the whole bitmap and
+        // the annotations scale from canvas points to pixels.
+        image.draw(in: NSRect(x: 0, y: 0, width: CGFloat(pxW), height: CGFloat(pxH)))
+        let sx = CGFloat(pxW) / bounds.width
+        let sy = CGFloat(pxH) / bounds.height
         for a in annotations {
             compositeAnnotation(a, sx: sx, sy: sy)
         }
-        out.unlockFocus()
+        ctx.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+
+        rep.size = image.size                 // point size → correct DPI metadata
+        let out = NSImage(size: image.size)
+        out.addRepresentation(rep)
         return out
     }
 
@@ -666,9 +691,7 @@ final class AnnotationWindowController: NSWindowController {
     @objc private func didUndo() { canvas.undo() }
 
     @objc private func didCopy() {
-        let img = canvas.compositeImage()
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([img])
+        SettingsManager.copyToClipboard(canvas.compositeImage())
         window?.close()
     }
 

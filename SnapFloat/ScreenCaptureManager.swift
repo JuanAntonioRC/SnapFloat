@@ -67,21 +67,18 @@ final class ScreenCaptureManager {
         let localX = rect.origin.x - screen.frame.origin.x
         let localY = screen.frame.height - (rect.origin.y - screen.frame.origin.y) - rect.height
 
-        let fullQuality = SettingsManager.shared.fullQualityCapture
-        let scaleFactor: CGFloat = fullQuality ? screen.backingScaleFactor : 1.0
+        // Always capture at the display's native pixel density (2× on Retina).
+        let scaleFactor = screen.backingScaleFactor
 
         let config = SCStreamConfiguration()
         config.sourceRect  = CGRect(x: localX, y: localY, width: rect.width, height: rect.height)
         config.width       = max(1, Int(rect.width  * scaleFactor))
         config.height      = max(1, Int(rect.height * scaleFactor))
         config.showsCursor = false
-
-        if fullQuality {
-            config.pixelFormat = kCVPixelFormatType_32BGRA
-            config.colorSpaceName = CGColorSpace.sRGB
-            if #available(macOS 14.2, *) {
-                config.captureResolution = .best
-            }
+        config.pixelFormat = kCVPixelFormatType_32BGRA
+        config.colorSpaceName = CGColorSpace.sRGB
+        if #available(macOS 14.2, *) {
+            config.captureResolution = .best
         }
 
         let cgImage: CGImage
@@ -92,16 +89,12 @@ final class ScreenCaptureManager {
             cgImage = try await StreamCaptureHelper().capture(filter: filter, config: config)
         }
 
-        if fullQuality {
-            // Build NSImage with a bitmap rep that preserves every Retina pixel.
-            let rep = NSBitmapImageRep(cgImage: cgImage)
-            rep.size = rect.size                  // point size for display
-            let image = NSImage(size: rect.size)
-            image.addRepresentation(rep)
-            return image
-        } else {
-            return NSImage(cgImage: cgImage, size: rect.size)
-        }
+        // Build NSImage with a bitmap rep that preserves every Retina pixel.
+        let rep = NSBitmapImageRep(cgImage: cgImage)
+        rep.size = rect.size                  // point size for display
+        let image = NSImage(size: rect.size)
+        image.addRepresentation(rep)
+        return image
     }
 
     /// Returns a cached SCDisplay, refreshing the cache once if it's a miss
