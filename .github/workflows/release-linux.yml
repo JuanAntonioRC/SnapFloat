@@ -1,0 +1,36 @@
+name: Build and Release deb (Linux)
+
+on:
+  push:
+    tags:
+      - 'linux-v*'  # Triggers on tags like linux-v1.3
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#linux-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: ./scripts/setup-linux-deps.sh
+
+      - name: Build deb
+        run: |
+          source "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+          VERSION="${{ steps.version.outputs.VERSION }}" ./scripts/build-deb.sh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SnapFloat Linux ${{ steps.version.outputs.VERSION }}
+          draft: false
+          generate_release_notes: true
+          files: dist/snapfloat_${{ steps.version.outputs.VERSION }}_amd64.deb
