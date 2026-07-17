@@ -20,7 +20,6 @@ final class SettingsManager {
         case captureAction   = "captureAction"
         case hotkeyKeyCode       = "hotkeyKeyCode"
         case hotkeyModifiers     = "hotkeyModifiers"
-        case fullQualityCapture  = "fullQualityCapture"
     }
 
     // MARK: – Capture action (what happens right after a screenshot is taken)
@@ -38,19 +37,6 @@ final class SettingsManager {
             return CaptureAction(rawValue: raw) ?? .copyToClipboard
         }
         set { defaults.set(newValue.rawValue, forKey: Key.captureAction.rawValue) }
-    }
-
-    // MARK: – Capture quality
-
-    /// When enabled, captures at full Retina resolution (2× pixels on Retina displays)
-    /// and preserves uncompressed pixel data for clipboard/save.
-    /// When disabled, captures at standard 1× resolution for smaller file sizes.
-    var fullQualityCapture: Bool {
-        get {
-            guard defaults.object(forKey: Key.fullQualityCapture.rawValue) != nil else { return true }
-            return defaults.bool(forKey: Key.fullQualityCapture.rawValue)
-        }
-        set { defaults.set(newValue, forKey: Key.fullQualityCapture.rawValue) }
     }
 
     // MARK: – Preview duration (seconds)
@@ -153,21 +139,12 @@ final class SettingsManager {
     @discardableResult
     static func saveToDiskIfNeeded(_ image: NSImage) -> URL? {
         guard let dir = shared.saveDirectoryURL else { return nil }
-        let rep: NSBitmapImageRep?
-        if shared.fullQualityCapture {
-            // Use the bitmap rep directly (preserves full Retina pixels)
-            // instead of going through tiffRepresentation which can downsample.
-            rep = image.representations
-                .compactMap({ $0 as? NSBitmapImageRep }).first
-                ?? image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-                    .map({ NSBitmapImageRep(cgImage: $0) })
-        } else {
-            if let tiff = image.tiffRepresentation {
-                rep = NSBitmapImageRep(data: tiff)
-            } else {
-                rep = nil
-            }
-        }
+        // Use the bitmap rep directly (preserves full Retina pixels)
+        // instead of going through tiffRepresentation which can downsample.
+        let rep = image.representations
+            .compactMap({ $0 as? NSBitmapImageRep }).first
+            ?? image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                .map({ NSBitmapImageRep(cgImage: $0) })
         guard let rep, let png = rep.representation(using: .png, properties: [:])
         else { return nil }
         let formatter = DateFormatter()
@@ -196,11 +173,12 @@ final class SettingsManager {
         }
     }
 
-    private static func copyToClipboard(_ image: NSImage) {
+    /// Full-quality clipboard copy — the single path every "copy" in the app
+    /// goes through, so no caller can accidentally downsample.
+    static func copyToClipboard(_ image: NSImage) {
         let pb = NSPasteboard.general
         pb.clearContents()
-        if shared.fullQualityCapture,
-           let rep = image.representations
+        if let rep = image.representations
                 .compactMap({ $0 as? NSBitmapImageRep }).first
                 ?? image.cgImage(forProposedRect: nil, context: nil, hints: nil)
                     .map({ NSBitmapImageRep(cgImage: $0) }) {

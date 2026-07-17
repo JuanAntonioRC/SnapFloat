@@ -131,9 +131,7 @@ final class ThumbnailWindowController: NSWindowController {
     private func copyTapped() {
         dismissTimer?.invalidate()
         dismissTimer = nil
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.writeObjects([capturedImage])
+        SettingsManager.copyToClipboard(capturedImage)
         animateOut()
     }
 
