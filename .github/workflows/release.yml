@@ -23,6 +23,8 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#macos-v}" >> "$GITHUB_OUTPUT"
 
       - name: Build DMG
+        env:
+          ADHOC: "1"   # no dev cert on CI runners
         run: ./scripts/build-dmg.sh "${{ steps.version.outputs.VERSION }}"
 
       - name: Create GitHub Release

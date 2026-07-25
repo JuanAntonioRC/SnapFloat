@@ -20,6 +20,18 @@ APP_PATH="$BUILD_DIR/$APP_NAME.app"
 # Version may be provided as argument; otherwise read from built app later
 ARG_VERSION="${1:-}"
 
+# Signing: locally we inherit the project's Automatic team signing (Apple
+# Development cert, team 84ATUGMHJX) — a stable cert-based Designated Requirement,
+# so macOS keeps the Screen Recording grant across rebuilds. CI has no keychain
+# cert, so it sets ADHOC=1 to fall back to ad-hoc (cdhash-pinned; the grant won't
+# persist, but nothing to sign with there).
+# ponytail: env flag, not per-cert detection — swap to Developer ID when notarizing.
+if [[ "${ADHOC:-}" == "1" ]]; then
+    SIGN_ARGS=(CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES)
+else
+    SIGN_ARGS=(CODE_SIGNING_ALLOWED=YES)
+fi
+
 echo "==> Building $APP_NAME (Release)…"
 
 # Clean previous build artifacts
@@ -33,8 +45,7 @@ xcodebuild build \
     -configuration Release \
     -derivedDataPath "$DERIVED" \
     -destination "generic/platform=macOS" \
-    CODE_SIGN_IDENTITY="-" \
-    CODE_SIGNING_ALLOWED=YES \
+    "${SIGN_ARGS[@]}" \
     MARKETING_VERSION="${ARG_VERSION:-1.0}" \
     | tail -3
 
