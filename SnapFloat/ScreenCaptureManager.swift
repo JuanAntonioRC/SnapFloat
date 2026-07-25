@@ -18,10 +18,14 @@ final class ScreenCaptureManager {
 
     // MARK: – Public
 
+    private static var didPromptPermission = false
+
     /// Call once at app launch.
-    /// Triggers the Screen Recording permission dialog exactly once, then
-    /// caches all connected displays for later captures.
+    /// If not yet authorized, requests permission once (never touch
+    /// SCShareableContent/SCScreenshotManager while unauthorized — each such call
+    /// throws its own system prompt). Otherwise caches all connected displays.
     static func prepareCapture() {
+        guard CGPreflightScreenCaptureAccess() else { requestPermissionOnce(); return }
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { content, error in
             guard let displays = content?.displays else {
                 NSLog("SnapFloat: SCShareableContent error at launch – \(String(describing: error))")
@@ -35,6 +39,10 @@ final class ScreenCaptureManager {
     }
 
     static func capture(rect screenRect: NSRect) {
+        // Preflight check never shows a dialog. Only call ScreenCaptureKit when
+        // truly authorized, so a granted app never re-prompts per capture.
+        guard CGPreflightScreenCaptureAccess() else { requestPermissionOnce(); return }
+
         let centre = NSPoint(x: screenRect.midX, y: screenRect.midY)
         let screen = NSScreen.screens.first { $0.frame.contains(centre) } ?? NSScreen.screens.first!
 
@@ -50,6 +58,27 @@ final class ScreenCaptureManager {
     }
 
     // MARK: – Private
+
+    /// Adds the app to the Screen Recording list and shows the system prompt +
+    /// one guidance alert, at most once per launch. A grant made while running
+    /// only takes effect after relaunch, so we point the user there instead of
+    /// re-prompting on every capture.
+    private static func requestPermissionOnce() {
+        guard !didPromptPermission else { return }
+        didPromptPermission = true
+        CGRequestScreenCaptureAccess()
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Screen Recording permission needed"
+            alert.informativeText = "Enable SnapFloat under System Settings › Privacy & Security › Screen Recording, then quit and reopen SnapFloat."
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Later")
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(URL(string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+            }
+        }
+    }
 
     @MainActor
     private static func doCapture(rect: NSRect, screen: NSScreen) async throws -> NSImage {

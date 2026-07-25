@@ -9,9 +9,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Trigger the Screen Recording permission dialog once at launch and
-        // cache SCDisplay objects. Do NOT call CGRequestScreenCaptureAccess()
-        // — it conflicts with ScreenCaptureKit and causes repeated dialogs.
+        // If authorized, cache SCDisplay objects; otherwise request permission
+        // once. prepareCapture gates on CGPreflightScreenCaptureAccess so we
+        // never call ScreenCaptureKit unauthorized (that re-prompts every time).
         ScreenCaptureManager.prepareCapture()
 
         setupMenuBar()
