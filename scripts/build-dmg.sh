@@ -26,10 +26,15 @@ ARG_VERSION="${1:-}"
 # cert, so it sets ADHOC=1 to fall back to ad-hoc (cdhash-pinned; the grant won't
 # persist, but nothing to sign with there).
 # ponytail: env flag, not per-cert detection — swap to Developer ID when notarizing.
+# Hardened runtime + no get-task-allow are required too: TCC refuses to durably
+# honour a Screen Recording grant for a debuggable, non-hardened process (it can
+# be injected into), so it re-validates and re-prompts on the first capture.
+HARDEN=(ENABLE_HARDENED_RUNTIME=YES CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
+
 if [[ "${ADHOC:-}" == "1" ]]; then
-    SIGN_ARGS=(CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES)
+    SIGN_ARGS=(CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES "${HARDEN[@]}")
 else
-    SIGN_ARGS=(CODE_SIGNING_ALLOWED=YES)
+    SIGN_ARGS=(CODE_SIGNING_ALLOWED=YES "${HARDEN[@]}")
 fi
 
 echo "==> Building $APP_NAME (Release)…"
