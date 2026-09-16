@@ -22,10 +22,41 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#macos-v}" >> "$GITHUB_OUTPUT"
 
+      # Stable self-signed cert: users' Screen Recording grant is pinned to it,
+      # so it survives updates. Never build a release without it (see build-dmg.sh).
+      - name: Import signing certificate
+        env:
+          P12: ${{ secrets.MACOS_SIGNING_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+        run: |
+          test -n "$P12" || { echo "::error::MACOS_SIGNING_P12 secret missing"; exit 1; }
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PW=$(uuidgen)
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-certificate -c "SnapFloat Release Signing" -p "$KC" > "$RUNNER_TEMP/cert.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain "$RUNNER_TEMP/cert.pem"
+          rm "$RUNNER_TEMP/cert.p12"
+
       - name: Build DMG
         env:
-          ADHOC: "1"   # no dev cert on CI runners
+          SIGN_IDENTITY: SnapFloat Release Signing
         run: ./scripts/build-dmg.sh "${{ steps.version.outputs.VERSION }}"
+
+      # Fails the release if it isn't signed with the pinned cert — shipping any
+      # other signature would make every user re-grant Screen Recording.
+      - name: Verify release signature
+        run: |
+          codesign -dv build/SnapFloat.app
+          codesign --verify --strict \
+            -R='identifier "com.snapfloat.SnapFloat" and certificate leaf = H"0b91cc9c2ff1bb8a516e91dc8bf662e02bba3c93"' \
+            build/SnapFloat.app
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

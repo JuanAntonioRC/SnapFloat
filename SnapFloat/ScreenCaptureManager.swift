@@ -78,6 +78,18 @@ final class ScreenCaptureManager {
     private static func requestPermissionOnce() {
         guard !didPromptPermission else { return }
         didPromptPermission = true
+        // A grant stored for a differently-signed build (ad-hoc releases before 1.5.2,
+        // or a local Xcode build vs. the release) doesn't match this binary, yet the
+        // toggle shows ON and toggling doesn't rewrite the stored requirement.
+        // Dropping our own entry lets the request below store one for this binary.
+        // No privileges needed for our own bundle ID.
+        if let id = Bundle.main.bundleIdentifier {
+            let reset = Process()
+            reset.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            reset.arguments = ["reset", "ScreenCapture", id]
+            try? reset.run()
+            reset.waitUntilExit()
+        }
         CGRequestScreenCaptureAccess()
         DispatchQueue.main.async {
             let alert = NSAlert()

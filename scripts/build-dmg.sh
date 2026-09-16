@@ -22,17 +22,21 @@ ARG_VERSION="${1:-}"
 
 # Signing: locally we inherit the project's Automatic team signing (Apple
 # Development cert, team 84ATUGMHJX) — a stable cert-based Designated Requirement,
-# so macOS keeps the Screen Recording grant across rebuilds. CI has no keychain
-# cert, so it sets ADHOC=1 to fall back to ad-hoc (cdhash-pinned; the grant won't
-# persist, but nothing to sign with there).
-# ponytail: env flag, not per-cert detection — swap to Developer ID when notarizing.
+# so macOS keeps the Screen Recording grant across rebuilds on this Mac.
+# Releases set SIGN_IDENTITY to the self-signed "SnapFloat Release Signing" cert
+# (CI imports it from secrets). Every release must use that same cert: the TCC
+# grant is pinned to its leaf hash, so a new cert — or ad-hoc, whose requirement
+# is the per-build cdhash — makes every user re-grant after updating.
+# ponytail: self-signed, not Developer ID — Gatekeeper still warns on first open;
+# switch to Developer ID + notarization if that becomes the blocker.
 # Hardened runtime + no get-task-allow are required too: TCC refuses to durably
 # honour a Screen Recording grant for a debuggable, non-hardened process (it can
 # be injected into), so it re-validates and re-prompts on the first capture.
 HARDEN=(ENABLE_HARDENED_RUNTIME=YES CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
 
-if [[ "${ADHOC:-}" == "1" ]]; then
-    SIGN_ARGS=(CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES "${HARDEN[@]}")
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    # Xcode won't sign with a non-Apple identity; build unsigned, codesign below.
+    SIGN_ARGS=(CODE_SIGNING_ALLOWED=NO)
 else
     SIGN_ARGS=(CODE_SIGNING_ALLOWED=YES "${HARDEN[@]}")
 fi
@@ -61,6 +65,11 @@ if [[ -z "$BUILT_APP" ]]; then
     exit 1
 fi
 cp -R "$BUILT_APP" "$APP_PATH"
+
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    codesign --force --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
+    codesign --verify --strict "$APP_PATH"
+fi
 
 # Resolve version: argument > built app's Info.plist
 if [[ -n "$ARG_VERSION" ]]; then
