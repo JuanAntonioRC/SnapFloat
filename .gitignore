@@ -26,3 +26,6 @@ dist/
 
 # CocoaPods (not used, but just in case)
 Pods/
+
+# The global gitignore excludes *.png; the app icon must be committed or CI builds ship without it
+!SnapFloat/Assets.xcassets/**/*.png
