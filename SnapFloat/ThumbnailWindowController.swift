@@ -124,7 +124,7 @@ final class ThumbnailWindowController: NSWindowController {
         dismissTimer?.invalidate()
         dismissTimer = nil
         window?.orderOut(nil)
-        ThumbnailWindowController.instance = nil
+        releaseInstance()
         AnnotationWindowController.show(image: capturedImage)
     }
 
@@ -152,7 +152,14 @@ final class ThumbnailWindowController: NSWindowController {
         dismissTimer?.invalidate()
         dismissTimer = nil
         window?.orderOut(nil)
-        ThumbnailWindowController.instance = nil
+        releaseInstance()
+    }
+
+    /// Only drop the shared reference if it's still us. A fade-out that finishes
+    /// after a newer capture replaced us must not release the newer controller:
+    /// its panel would stay on screen with dead [weak self] buttons and timer.
+    private func releaseInstance() {
+        if ThumbnailWindowController.instance === self { ThumbnailWindowController.instance = nil }
     }
 
     private func animateOut() {
@@ -163,7 +170,7 @@ final class ThumbnailWindowController: NSWindowController {
             window?.animator().alphaValue = 0
         }, completionHandler: {
             self.window?.orderOut(nil)
-            ThumbnailWindowController.instance = nil
+            self.releaseInstance()
         })
     }
 }
