@@ -44,13 +44,58 @@ From 1.5.2 on, updates keep the permission and won't ask again.
 <details>
 <summary>Still asking for permission after restarting?</summary>
 
-Reset the permission in Terminal, then open SnapFloat, grant it, and restart the app once more:
+Try these in order — most cases are fixed by step 2.
+
+**1. Make sure you're opening the right copy.** Running SnapFloat from inside the mounted DMG, or from a leftover copy in Downloads, is the most common cause. Quit it, eject the DMG, and open it only from **Applications**. To find duplicate copies:
 
 ```bash
-tccutil reset ScreenCapture com.snapfloat.SnapFloat
+mdfind "kMDItemCFBundleIdentifier == com.snapfloat.SnapFloat"
 ```
 
+Delete every copy except `/Applications/SnapFloat.app`.
+
+**2. Reset the permission.**
+
+1. Quit SnapFloat.
+2. Run in Terminal:
+   ```bash
+   tccutil reset ScreenCapture com.snapfloat.SnapFloat
+   ```
+3. Open SnapFloat and take a capture. When it asks, turn on the permission.
+4. **Quit SnapFloat and open it again.** The permission only takes effect after this restart.
+
 Turning the switch off and on in System Settings doesn't help: it doesn't update the signature macOS stored with the old permission.
+
+**3. Remove it from the list and add it back.**
+
+1. Open **System Settings › Privacy & Security › Screen & System Audio Recording**.
+2. Select SnapFloat and click **−** (this deletes the saved entry, not just the switch).
+3. Click **+** and choose `/Applications/SnapFloat.app`.
+4. Quit SnapFloat and open it again.
+
+**4. Reinstall.**
+
+1. Quit SnapFloat and move it to the Trash.
+2. Run the `tccutil reset` command from step 2.
+3. Download the DMG again from [Releases](https://github.com/JuanAntonioRC/SnapFloat/releases/latest) and install it.
+
+To rule out a corrupted download, check the signature:
+
+```bash
+codesign --verify --strict /Applications/SnapFloat.app && echo OK
+```
+
+**5. Restart your Mac.** macOS sometimes keeps old permission data cached until a restart. Afterwards, repeat step 2.
+
+**6. Work or school Mac?** If the switch is greyed out or says it's managed by your organization, a device management (MDM) profile is blocking Screen Recording. Only your IT department can allow it.
+
+**Still stuck?** [Open an issue](https://github.com/JuanAntonioRC/SnapFloat/issues) with your macOS version and the output of:
+
+```bash
+codesign -dv --verbose=2 /Applications/SnapFloat.app 2>&1 | grep -E "Identifier|Authority|flags|Signature"
+```
+
+If it shows `Signature=adhoc`, you're still running a version older than 1.5.2 — update first.
 </details>
 
 ---
