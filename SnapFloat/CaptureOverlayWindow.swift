@@ -7,12 +7,26 @@ final class CaptureOverlayWindow: NSWindow {
 
     // MARK: – Public interface
 
-    static func show() {
-        guard instances.isEmpty else { return }
+    private static var isFreezing = false
 
+    static func show() {
+        guard instances.isEmpty, !isFreezing else { return }
+        isFreezing = true
+
+        Task { @MainActor in
+            // Snapshot first: activating below closes other apps' open menus.
+            let screens = NSScreen.screens
+            var frozen: [NSImage?] = []
+            for screen in screens { frozen.append(await ScreenCaptureManager.snapshot(of: screen)) }
+            isFreezing = false
+            present(screens: screens, frozen: frozen)
+        }
+    }
+
+    private static func present(screens: [NSScreen], frozen: [NSImage?]) {
         // Create an overlay on every connected screen
-        for screen in NSScreen.screens {
-            let win = CaptureOverlayWindow(screen: screen)
+        for (screen, image) in zip(screens, frozen) {
+            let win = CaptureOverlayWindow(screen: screen, frozen: image)
             instances.append(win)
             win.orderFront(nil)
         }
@@ -34,7 +48,7 @@ final class CaptureOverlayWindow: NSWindow {
 
     // MARK: – Init
 
-    private init(screen: NSScreen) {
+    private init(screen: NSScreen, frozen: NSImage?) {
         // NSWindow's designated initializer does NOT include `screen:`.
         // We pass screen.frame (global AppKit coords) so the window lands on the right display.
         super.init(
@@ -53,6 +67,7 @@ final class CaptureOverlayWindow: NSWindow {
 
         let overlayView = CaptureOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
         overlayView.screenFrame = screen.frame
+        overlayView.frozen = frozen
         contentView = overlayView
     }
 

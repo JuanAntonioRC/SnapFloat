@@ -6,6 +6,8 @@ final class CaptureOverlayView: NSView {
 
     /// The screen frame in global AppKit coords — used when converting to screen coords for capture.
     var screenFrame: NSRect = .zero
+    /// Screen as it was when the hotkey fired; nil falls back to a live capture.
+    var frozen: NSImage?
 
     private var startPoint: NSPoint?
     private var currentRect: NSRect?
@@ -42,16 +44,27 @@ final class CaptureOverlayView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current else { return }
 
+        frozen?.draw(in: bounds, from: .zero, operation: .copy, fraction: 1,
+                     respectFlipped: true, hints: nil)
+
         // Semi-transparent dark overlay
         NSColor.black.withAlphaComponent(0.45).setFill()
-        bounds.fill()
+        bounds.fill(using: .sourceOver)
 
         guard let rect = currentRect, rect.width > 2, rect.height > 2 else { return }
 
-        // Punch a transparent hole for the selected area
-        ctx.compositingOperation = .clear
-        rect.fill()
-        ctx.compositingOperation = .sourceOver
+        if let frozen {
+            // Re-draw the undimmed snapshot inside the selection
+            let src = NSRect(x: rect.minX, y: bounds.height - rect.maxY,
+                             width: rect.width, height: rect.height)
+            frozen.draw(in: rect, from: src, operation: .copy, fraction: 1,
+                        respectFlipped: true, hints: nil)
+        } else {
+            // Punch a transparent hole for the selected area
+            ctx.compositingOperation = .clear
+            rect.fill()
+            ctx.compositingOperation = .sourceOver
+        }
 
         // Selection border
         NSColor.white.withAlphaComponent(0.9).setStroke()
@@ -117,11 +130,12 @@ final class CaptureOverlayView: NSView {
             height: sel.height
         )
 
+        let frozen = frozen
         CaptureOverlayWindow.dismiss()
 
         // Brief delay so the overlay window is fully gone before we grab pixels
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
-            ScreenCaptureManager.capture(rect: screenRect)
+        DispatchQueue.main.asyncAfter(deadline: .now() + (frozen == nil ? 0.06 : 0)) {
+            ScreenCaptureManager.capture(rect: screenRect, frozen: frozen)
         }
     }
 

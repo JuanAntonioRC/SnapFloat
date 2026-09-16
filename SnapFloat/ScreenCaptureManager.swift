@@ -38,7 +38,18 @@ final class ScreenCaptureManager {
         }
     }
 
-    static func capture(rect screenRect: NSRect) {
+    /// Full-screen snapshot taken the moment the hotkey fires, before the overlay
+    /// takes focus. Taking focus closes the frontmost app's open menus, so we
+    /// select on this frozen image (same trick as CleanShot/Shottr) to keep them.
+    @MainActor
+    static func snapshot(of screen: NSScreen) async -> NSImage? {
+        guard CGPreflightScreenCaptureAccess() else { return nil }
+        return try? await doCapture(rect: screen.frame, screen: screen)
+    }
+
+    /// `frozen` is the `snapshot(of:)` of the screen containing `screenRect`;
+    /// when present we crop it instead of grabbing live pixels.
+    static func capture(rect screenRect: NSRect, frozen: NSImage? = nil) {
         // Preflight check never shows a dialog. Only call ScreenCaptureKit when
         // truly authorized, so a granted app never re-prompts per capture.
         guard CGPreflightScreenCaptureAccess() else { requestPermissionOnce(); return }
@@ -48,7 +59,8 @@ final class ScreenCaptureManager {
 
         Task { @MainActor in
             do {
-                let img = try await doCapture(rect: screenRect, screen: screen)
+                let img = if let frozen { try crop(frozen, to: screenRect, screen: screen) }
+                          else { try await doCapture(rect: screenRect, screen: screen) }
                 SettingsManager.performCaptureAction(image: img)
                 ThumbnailWindowController.show(image: img, originalSize: screenRect.size, on: screen)
             } catch {
@@ -118,10 +130,28 @@ final class ScreenCaptureManager {
             cgImage = try await StreamCaptureHelper().capture(filter: filter, config: config)
         }
 
-        // Build NSImage with a bitmap rep that preserves every Retina pixel.
+        return makeImage(cgImage, size: rect.size)
+    }
+
+    private static func crop(_ frozen: NSImage, to rect: NSRect, screen: NSScreen) throws -> NSImage {
+        guard let cg = frozen.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        else { throw CaptureError.frameFailed }
+        // Snapshot pixels are top-left origin; scale points → pixels.
+        let scale = CGFloat(cg.width) / screen.frame.width
+        let local = CGRect(x: rect.origin.x - screen.frame.origin.x,
+                           y: screen.frame.maxY - rect.maxY,
+                           width: rect.width, height: rect.height)
+        let px = CGRect(x: local.minX * scale, y: local.minY * scale,
+                        width: local.width * scale, height: local.height * scale).integral
+        guard let cropped = cg.cropping(to: px) else { throw CaptureError.frameFailed }
+        return makeImage(cropped, size: rect.size)
+    }
+
+    /// NSImage with a bitmap rep that preserves every Retina pixel.
+    private static func makeImage(_ cgImage: CGImage, size: NSSize) -> NSImage {
         let rep = NSBitmapImageRep(cgImage: cgImage)
-        rep.size = rect.size                  // point size for display
-        let image = NSImage(size: rect.size)
+        rep.size = size                       // point size for display
+        let image = NSImage(size: size)
         image.addRepresentation(rep)
         return image
     }
