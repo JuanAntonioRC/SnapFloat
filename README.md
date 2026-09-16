@@ -25,6 +25,34 @@ A lightweight screenshot tool. Select a region, get a floating preview, copy or 
 4. Grant **Screen Recording** when macOS prompts you.
 5. Press **⇧⌘2** to capture.
 
+> SnapFloat isn't notarized, so the first time you open it macOS blocks it. Go to **System Settings › Privacy & Security** and click **Open Anyway**.
+
+## Update (macOS)
+
+1. **Quit SnapFloat** from the menu bar icon (**Quit SnapFloat**).
+2. Download the new **`SnapFloat-x.x.dmg`** from the [Releases page](https://github.com/JuanAntonioRC/SnapFloat/releases/latest).
+3. Drag **SnapFloat** into **Applications** and choose **Replace**.
+4. Open SnapFloat. Your settings (shortcut, save folder, etc.) are kept.
+
+**Coming from 1.5.1 or older?** Those versions were signed differently, so macOS won't recognize the old Screen Recording permission, even though System Settings still shows it switched on. Updating fixes this for good, but you need to grant the permission one last time:
+
+1. On the first capture, SnapFloat asks for Screen Recording. Click **Open System Settings** and turn on **SnapFloat**.
+2. **Quit SnapFloat and open it again** — macOS only applies the permission after a restart.
+
+From 1.5.2 on, updates keep the permission and won't ask again.
+
+<details>
+<summary>Still asking for permission after restarting?</summary>
+
+Reset the permission in Terminal, then open SnapFloat, grant it, and restart the app once more:
+
+```bash
+tccutil reset ScreenCapture com.snapfloat.SnapFloat
+```
+
+Turning the switch off and on in System Settings doesn't help: it doesn't update the signature macOS stored with the old permission.
+</details>
+
 ---
 
 ## What it does
