@@ -1,4 +1,4 @@
-name: Build and Release deb (Linux)
+name: Build and Release deb + snap (Linux)
 
 on:
   push:
@@ -34,3 +34,35 @@ jobs:
           draft: false
           generate_release_notes: true
           files: dist/snapfloat_${{ steps.version.outputs.VERSION }}_amd64.deb
+
+  # The .snap is what install.sh fetches — the one-line install path.
+  # Separate job so a snap build failure doesn't block the .deb.
+  snap:
+    runs-on: ubuntu-24.04
+    needs: build
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#linux-v}" >> "$GITHUB_OUTPUT"
+
+      # snapcraft.yaml's `version:` is a fallback for local builds — the
+      # tag is the source of truth for releases.
+      - name: Stamp version from tag
+        run: sed -i "s/^version: .*/version: '${{ steps.version.outputs.VERSION }}'/" snap/snapcraft.yaml
+
+      - name: Build snap
+        id: snapcraft
+        uses: snapcore/action-build@v1
+
+      # install.sh picks the newest release with a *.snap asset, so the
+      # file name only needs the .snap extension — keep it versioned.
+      - name: Attach snap to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.snapcraft.outputs.snap }}

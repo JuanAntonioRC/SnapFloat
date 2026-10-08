@@ -13,7 +13,19 @@ A lightweight screenshot tool. Select a region, get a floating preview, copy or 
 
 **[Download the latest release](https://github.com/JuanAntonioRC/SnapFloat/releases/latest)**
 
-> macOS requires **macOS 13 (Ventura)** or later. Linux is built from source (see [below](#linux-ubuntugnome)) — there's no packaged release yet.
+> macOS requires **macOS 13 (Ventura)** or later.
+
+---
+
+## Install (Linux — Ubuntu/GNOME)
+
+Paste this into a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JuanAntonioRC/SnapFloat/main/install.sh | sh
+```
+
+It asks for your password once, installs SnapFloat, turns on **Launch at login**, and starts it — look for the icon in the top bar, then press **Ctrl+Shift+2** to capture. Run the same command again to update; uninstall with `sudo snap remove snapfloat`.
 
 ---
 

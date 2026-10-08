@@ -21,8 +21,9 @@ DerivedData/
 .build/
 .swiftpm/
 
-# Packaging output (build-deb.sh)
+# Packaging output (build-deb.sh, snapcraft pack)
 dist/
+*.snap
 
 # CocoaPods (not used, but just in case)
 Pods/

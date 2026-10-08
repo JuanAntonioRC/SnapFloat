@@ -1,6 +1,6 @@
 name: snapfloat
 base: core24
-version: '1.0'
+version: '1.3'
 summary: Region screenshot tool with a floating preview
 description: |
   SnapFloat captures a screen region and shows a small floating thumbnail
