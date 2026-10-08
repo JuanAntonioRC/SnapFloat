@@ -21,6 +21,14 @@ apps:
     command: bin/snapfloat-linux
     extensions: [gnome]
     common-id: com.snapfloat.SnapFloat
+    # "Launch at login": under confinement LinuxAutostart.swift's
+    # ~/.config/autostart write lands in $SNAP_USER_DATA/.config/autostart,
+    # which the session's own autostart never reads. snapd's
+    # `snap userd --autostart` helper scans that directory at login instead,
+    # but only launches a file some app claims by name here — without this
+    # key it logs "cannot match desktop file with snap snapfloat
+    # applications" and skips it. Must match LinuxAutostart's file name.
+    autostart: com.snapfloat.SnapFloat.desktop
     # No explicit `desktop:` key needed — files under snap/gui/ are copied
     # into meta/gui/ automatically by snapcraft's own build lifecycle.
     # Same allocator/renderer tuning as the .desktop Exec= line ships for
@@ -134,7 +142,18 @@ parts:
         tar -xzf /tmp/swift-toolchain.tar.gz -C "$SWIFT_DIR" --strip-components=1
         rm -f /tmp/swift-toolchain.tar.gz
       fi
-      export PATH="$SWIFT_DIR/usr/bin:$PATH"
+      # The gnome extension's build environment points PATH/PKG_CONFIG_PATH
+      # (and friends) at the gnome-46-2404-sdk snap, whose pkg-config files
+      # put its own usr/include on the search path — Swift's clang importer
+      # then picks up the SDK's glibc headers (tgmath.h) over the system
+      # ones and fails with "could not build C module 'SwiftGlibc'". The
+      # libgtk-4-dev build-package already provides everything we compile
+      # against, so build with a clean environment pointing at the system
+      # toolchain/headers only.
+      export PATH="$SWIFT_DIR/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      unset PKG_CONFIG_PATH PKG_CONFIG_SYSROOT_DIR C_INCLUDE_PATH \
+        CPLUS_INCLUDE_PATH CPATH CFLAGS CXXFLAGS CPPFLAGS LDFLAGS \
+        LD_LIBRARY_PATH
 
       cd "$CRAFT_PART_SRC"
       swift build -c release --static-swift-stdlib -Xswiftc -Osize

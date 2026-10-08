@@ -2,6 +2,10 @@ import Foundation
 
 /// "Launch at login" via the XDG autostart convention (~/.config/autostart),
 /// mirroring SettingsManager.launchAtLogin on macOS (which uses SMAppService).
+/// Under snap confinement $HOME/.config is the snap's private
+/// $SNAP_USER_DATA/.config, and it's snapd's `snap userd --autostart` that
+/// launches the entry at login — only because snapcraft.yaml's
+/// `autostart:` key names this exact file, so keep the two in sync.
 enum LinuxAutostart {
     private static var autostartPath: String {
         let configHome = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"]
