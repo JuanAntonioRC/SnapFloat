@@ -54,7 +54,8 @@ jobs:
       # snapcraft.yaml's `version:` is a fallback for local builds — the
       # tag is the source of truth for releases.
       - name: Stamp version from tag
-        run: sed -i "s/^version: .*/version: '${{ steps.version.outputs.VERSION }}'/" snap/snapcraft.yaml
+        run: |
+          sed -i "s/^version: .*/version: '${{ steps.version.outputs.VERSION }}'/" snap/snapcraft.yaml
 
       - name: Build snap
         id: snapcraft
