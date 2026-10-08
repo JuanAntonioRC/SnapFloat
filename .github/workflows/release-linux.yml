@@ -34,6 +34,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: SnapFloat Linux ${{ steps.version.outputs.VERSION }}
+          # README's macOS download link is /releases/latest — keep that
+          # pointing at the DMG; install.sh finds Linux releases itself.
+          make_latest: false
           draft: false
           generate_release_notes: true
           files: dist/snapfloat_${{ steps.version.outputs.VERSION }}_amd64.deb
@@ -72,4 +75,6 @@ jobs:
       - name: Attach snap to the release
         uses: softprops/action-gh-release@v2
         with:
+          name: SnapFloat Linux ${{ steps.version.outputs.VERSION }}
+          make_latest: false
           files: ${{ steps.snapcraft.outputs.snap }}
