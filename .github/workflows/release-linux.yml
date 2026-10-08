@@ -24,7 +24,10 @@ jobs:
 
       - name: Build deb
         run: |
-          source "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+          # setup-linux-deps.sh skips swiftly when the runner image already
+          # ships a Swift toolchain, so there's no env.sh to source then.
+          SWIFTLY_ENV="${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh"
+          if [ -f "$SWIFTLY_ENV" ]; then source "$SWIFTLY_ENV"; fi
           VERSION="${{ steps.version.outputs.VERSION }}" ./scripts/build-deb.sh
 
       - name: Create GitHub Release
@@ -36,10 +39,13 @@ jobs:
           files: dist/snapfloat_${{ steps.version.outputs.VERSION }}_amd64.deb
 
   # The .snap is what install.sh fetches — the one-line install path.
-  # Separate job so a snap build failure doesn't block the .deb.
+  # Separate job so a failure in either build doesn't block the other.
+  # Runs after `build` (not alongside it) so the two jobs don't race to
+  # create the same release (if `build` failed, this job creates it).
   snap:
     runs-on: ubuntu-24.04
     needs: build
+    if: ${{ !cancelled() }}
     permissions:
       contents: write
 
